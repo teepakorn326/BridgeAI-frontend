@@ -2,22 +2,111 @@
 
 import React, { useRef, useState, useCallback, useEffect } from "react";
 import ReactPlayer from "react-player";
-import { Play, Globe, Clock, ChevronRight, Sparkles } from "lucide-react";
+import {
+  Play,
+  Globe,
+  Clock,
+  ChevronLeft,
+  Sparkles,
+  FileText,
+  HelpCircle,
+  BookOpen,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { ProcessResponse, SubtitleLine } from "@/types";
+import { API_BASE } from "@/lib/api";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 
 interface CoursePlayerProps {
   data: ProcessResponse;
   onBack: () => void;
 }
 
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correct: number;
+  explanation: string;
+}
+
+interface VocabEntry {
+  term: string;
+  translation: string;
+  definition: string;
+}
+
+type TabKey = "transcript" | "summary" | "quiz" | "vocab";
+
 export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
-  const playerRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<any>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
 
-  // Track current time via timeupdate event on the underlying video element
+  // Tabs and study materials
+  const [activeTab, setActiveTab] = useState<TabKey>("transcript");
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [vocab, setVocab] = useState<VocabEntry[] | null>(null);
+  const [vocabLoading, setVocabLoading] = useState(false);
+
+  const fetchStudyMaterial = useCallback(
+    async (kind: "summarize" | "quiz" | "vocab") => {
+      const res = await fetch(`${API_BASE}/api/${kind}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video_url: data.video_url,
+          target_lang: data.target_lang,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Failed to load ${kind}`);
+      }
+      return res.json();
+    },
+    [data.video_url, data.target_lang]
+  );
+
+  // Lazy-load each tab's data on first open
+  useEffect(() => {
+    if (activeTab === "summary" && summary === null && !summaryLoading) {
+      setSummaryLoading(true);
+      fetchStudyMaterial("summarize")
+        .then((r) => setSummary(r.summary))
+        .catch((e) => setSummary(`Error: ${e.message}`))
+        .finally(() => setSummaryLoading(false));
+    }
+    if (activeTab === "quiz" && quiz === null && !quizLoading) {
+      setQuizLoading(true);
+      fetchStudyMaterial("quiz")
+        .then((r) => setQuiz(r.quiz))
+        .catch(() => setQuiz([]))
+        .finally(() => setQuizLoading(false));
+    }
+    if (activeTab === "vocab" && vocab === null && !vocabLoading) {
+      setVocabLoading(true);
+      fetchStudyMaterial("vocab")
+        .then((r) => setVocab(r.vocab))
+        .catch(() => setVocab([]))
+        .finally(() => setVocabLoading(false));
+    }
+  }, [activeTab, summary, summaryLoading, quiz, quizLoading, vocab, vocabLoading, fetchStudyMaterial]);
+
   const handleTimeUpdate = useCallback(
     (e: React.SyntheticEvent<HTMLVideoElement>) => {
       const time = e.currentTarget.currentTime;
@@ -67,33 +156,50 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
     return currentTime >= sub.start_seconds && currentTime < sub.end_seconds;
   };
 
+  const progressPercent =
+    data.subtitles.length > 0
+      ? Math.min(((activeIndex + 1) / data.subtitles.length) * 100, 100)
+      : 0;
+
   return (
-    <div className="min-h-screen bg-[#0a0a0f]">
+    <div className="min-h-screen bg-background">
       {/* Top Navigation */}
-      <nav className="border-b border-white/5 bg-[#0a0a0f]/80 backdrop-blur-xl sticky top-0 z-50">
+      <nav className="border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-[1800px] mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onBack}
-              className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors group"
+              className="text-muted-foreground hover:text-foreground gap-1.5"
             >
-              <ChevronRight className="w-4 h-4 rotate-180 group-hover:-translate-x-0.5 transition-transform" />
+              <ChevronLeft className="w-4 h-4" />
               Back to Dashboard
-            </button>
-            <div className="w-px h-5 bg-white/10" />
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-white/40">
-                {data.from_cache ? "Loaded from cache" : "Freshly generated"}
-              </span>
-            </div>
+            </Button>
+            <Separator orientation="vertical" className="h-5" />
+            <Badge
+              variant="outline"
+              className={`gap-1.5 text-xs ${
+                data.from_cache
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-600"
+                  : "bg-sky-50 border-sky-200 text-sky-600"
+              }`}
+            >
+              <div
+                className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  data.from_cache ? "bg-emerald-500" : "bg-sky-500"
+                }`}
+              />
+              {data.from_cache ? "Loaded from cache" : "Freshly generated"}
+            </Badge>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <Globe className="w-3.5 h-3.5 text-violet-400" />
-            <span className="text-xs font-medium text-white/70">
-              {data.target_lang}
-            </span>
-          </div>
+          <Badge
+            variant="outline"
+            className="bg-primary/10 border-primary/20 text-primary gap-1.5"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {data.target_lang}
+          </Badge>
         </div>
       </nav>
 
@@ -103,7 +209,7 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
           {/* Left: Video Player (70%) */}
           <div className="flex-[7] flex flex-col min-w-0">
             {/* Video Container */}
-            <div className="relative w-full rounded-2xl overflow-hidden bg-black/50 border border-white/5 shadow-2xl shadow-violet-500/5">
+            <Card className="overflow-hidden bg-slate-900 border-border shadow-2xl shadow-sky-500/10">
               <div className="aspect-video">
                 <ReactPlayer
                   ref={playerRef}
@@ -125,144 +231,300 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
                   } as any}
                 />
               </div>
-            </div>
+            </Card>
 
             {/* Course Info Below Video */}
             <div className="mt-5 space-y-3">
-              <h1 className="text-2xl font-bold text-white tracking-tight">
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">
                 {data.title}
               </h1>
-              <div className="flex items-center gap-4 text-sm text-white/40">
-                <div className="flex items-center gap-1.5">
-                  <Play className="w-3.5 h-3.5" />
-                  <span>Video ID: {data.video_id}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{data.subtitles.length} translated segments</span>
-                </div>
+              <div className="flex items-center gap-4">
+                <Badge variant="secondary" className="gap-1.5">
+                  <Play className="w-3 h-3" />
+                  {data.video_id}
+                </Badge>
+                <Badge variant="secondary" className="gap-1.5">
+                  <Sparkles className="w-3 h-3" />
+                  {data.subtitles.length} segments
+                </Badge>
               </div>
             </div>
 
             {/* Currently Playing Subtitle - Large Display */}
             {activeIndex >= 0 && (
-              <div className="mt-6 p-5 rounded-xl bg-gradient-to-r from-violet-500/10 to-blue-500/10 border border-violet-500/20 backdrop-blur-sm animate-fade-in">
-                <p className="text-lg text-white/90 font-medium leading-relaxed">
-                  {data.subtitles[activeIndex].text_en}
-                </p>
-                <p className="text-lg text-violet-300 font-medium leading-relaxed mt-2">
-                  {data.subtitles[activeIndex].text_translated}
-                </p>
-              </div>
+              <Card className="mt-6 bg-gradient-to-r from-sky-500/10 to-blue-500/10 border-sky-500/20 animate-fade-in">
+                <CardContent className="p-5">
+                  <p className="text-lg text-foreground/90 font-medium leading-relaxed">
+                    {data.subtitles[activeIndex].text_en}
+                  </p>
+                  <p className="text-lg text-sky-700 font-medium leading-relaxed mt-2">
+                    {data.subtitles[activeIndex].text_translated}
+                  </p>
+                </CardContent>
+              </Card>
             )}
           </div>
 
-          {/* Right: Interactive Transcript (30%) */}
+          {/* Right: Tabbed Study Sidebar (30%) */}
           <div className="flex-[3] flex flex-col min-w-[320px] max-w-[450px]">
-            <div className="rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col h-full overflow-hidden">
-              {/* Sidebar Header */}
-              <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-white/80 uppercase tracking-wider">
-                    Interactive Transcript
-                  </h2>
-                  <span className="text-xs text-white/30 tabular-nums">
-                    {formatTime(currentTime)}
-                  </span>
-                </div>
-                {/* Progress bar */}
-                <div className="mt-3 h-1 bg-white/5 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-violet-500 to-blue-500 rounded-full transition-all duration-300"
-                    style={{
-                      width: `${
-                        data.subtitles.length > 0
-                          ? Math.min(
-                              ((activeIndex + 1) / data.subtitles.length) * 100,
-                              100
-                            )
-                          : 0
-                      }%`,
-                    }}
-                  />
-                </div>
+            <Card className="flex flex-col h-full overflow-hidden bg-card/50 border-border">
+              {/* Tab Strip */}
+              <div className="flex items-center border-b border-border">
+                {[
+                  { key: "transcript" as const, label: "Transcript", icon: Clock },
+                  { key: "summary" as const, label: "Summary", icon: FileText },
+                  { key: "quiz" as const, label: "Quiz", icon: HelpCircle },
+                  { key: "vocab" as const, label: "Vocab", icon: BookOpen },
+                ].map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    onClick={() => setActiveTab(key)}
+                    className={`flex-1 px-3 py-3 text-xs font-medium uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 border-b-2 ${
+                      activeTab === key
+                        ? "border-sky-500 text-sky-700 bg-sky-500/5"
+                        : "border-transparent text-muted-foreground hover:text-foreground/80 hover:bg-secondary/30"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
               </div>
 
-              {/* Subtitle List */}
-              <div
-                ref={transcriptRef}
-                className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin"
-              >
-                {data.subtitles.map((sub, index) => {
-                  const active = isActive(sub);
-                  const isPast = currentTime >= sub.end_seconds;
+              {/* Transcript Tab */}
+              {activeTab === "transcript" && (
+                <>
+                  <CardHeader className="pb-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm uppercase tracking-wider text-muted-foreground">
+                        Interactive Transcript
+                      </CardTitle>
+                      <Badge variant="outline" className="text-xs tabular-nums">
+                        {formatTime(currentTime)}
+                      </Badge>
+                    </div>
+                    <Progress value={progressPercent} className="h-1" />
+                  </CardHeader>
+                  <Separator />
+                </>
+              )}
 
-                  return (
-                    <button
-                      key={index}
-                      data-index={index}
-                      onClick={() => handleSeek(sub.start_seconds)}
-                      className={`
-                        w-full text-left p-3.5 rounded-xl transition-all duration-300 group relative
-                        ${
-                          active
-                            ? "bg-gradient-to-r from-violet-500/15 to-blue-500/15 border border-violet-500/30 shadow-lg shadow-violet-500/10 scale-[1.02]"
-                            : isPast
-                            ? "bg-white/[0.02] border border-transparent hover:bg-white/[0.04] hover:border-white/5 opacity-60 hover:opacity-100"
-                            : "bg-white/[0.02] border border-transparent hover:bg-white/[0.04] hover:border-white/5"
-                        }
-                      `}
-                    >
-                      {/* Active indicator line */}
-                      {active && (
-                        <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-gradient-to-b from-violet-400 to-blue-400 rounded-full" />
-                      )}
+              {/* Summary Tab */}
+              {activeTab === "summary" && (
+                <ScrollArea className="flex-1">
+                  <div className="p-5">
+                    {summaryLoading && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating summary...
+                      </div>
+                    )}
+                    {summary && (
+                      <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                        {summary}
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
 
-                      {/* Timestamp */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock
-                          className={`w-3 h-3 ${
-                            active ? "text-violet-400" : "text-white/20"
-                          }`}
-                        />
-                        <span
-                          className={`text-xs font-mono ${
+              {/* Quiz Tab */}
+              {activeTab === "quiz" && (
+                <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-4">
+                    {quizLoading && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generating quiz...
+                      </div>
+                    )}
+                    {quiz && quiz.length > 0 && (
+                      <>
+                        {quiz.map((q, qi) => {
+                          const userAns = quizAnswers[qi];
+                          const showResult = quizSubmitted;
+                          return (
+                            <Card key={qi} className="bg-secondary/30 border-border">
+                              <CardContent className="p-4 space-y-3">
+                                <p className="text-sm font-medium text-foreground/90">
+                                  {qi + 1}. {q.question}
+                                </p>
+                                <div className="space-y-1.5">
+                                  {q.options.map((opt, oi) => {
+                                    const isSelected = userAns === oi;
+                                    const isCorrect = oi === q.correct;
+                                    return (
+                                      <button
+                                        key={oi}
+                                        disabled={showResult}
+                                        onClick={() =>
+                                          setQuizAnswers((prev) => ({ ...prev, [qi]: oi }))
+                                        }
+                                        className={`w-full text-left text-xs p-2.5 rounded-lg border transition-all flex items-center gap-2 ${
+                                          showResult && isCorrect
+                                            ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-300"
+                                            : showResult && isSelected && !isCorrect
+                                            ? "bg-red-500/10 border-red-500/40 text-red-300"
+                                            : isSelected
+                                            ? "bg-sky-500/10 border-sky-500/30 text-sky-700"
+                                            : "bg-background/50 border-border hover:border-sky-500/30"
+                                        }`}
+                                      >
+                                        {showResult && isCorrect && (
+                                          <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                                        )}
+                                        {showResult && isSelected && !isCorrect && (
+                                          <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                                        )}
+                                        <span>{opt}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                                {showResult && (
+                                  <p className="text-xs text-muted-foreground pt-1 border-t border-border">
+                                    💡 {q.explanation}
+                                  </p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                        <Button
+                          onClick={() => setQuizSubmitted((v) => !v)}
+                          className="w-full bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500"
+                        >
+                          {quizSubmitted ? "Reset Quiz" : "Submit Answers"}
+                        </Button>
+                        {quizSubmitted && (
+                          <p className="text-center text-sm text-muted-foreground">
+                            Score:{" "}
+                            <span className="text-sky-700 font-semibold">
+                              {quiz.filter((q, i) => quizAnswers[i] === q.correct).length}/
+                              {quiz.length}
+                            </span>
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
+
+              {/* Vocab Tab */}
+              {activeTab === "vocab" && (
+                <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-2.5">
+                    {vocabLoading && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Extracting vocabulary...
+                      </div>
+                    )}
+                    {vocab &&
+                      vocab.map((v, i) => (
+                        <Card
+                          key={i}
+                          className="bg-secondary/30 border-border hover:border-sky-500/30 transition-all"
+                        >
+                          <CardContent className="p-3.5 space-y-1.5">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="text-sm font-semibold text-foreground">
+                                {v.term}
+                              </span>
+                              <span className="text-xs text-sky-700 font-medium truncate">
+                                {v.translation}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              {v.definition}
+                            </p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                </ScrollArea>
+              )}
+
+              {/* Subtitle List (transcript tab only) */}
+              {activeTab === "transcript" && (
+              <ScrollArea className="flex-1">
+                <div
+                  ref={transcriptRef}
+                  className="p-3 space-y-2"
+                >
+                  {data.subtitles.map((sub, index) => {
+                    const active = isActive(sub);
+                    const isPast = currentTime >= sub.end_seconds;
+
+                    return (
+                      <button
+                        key={index}
+                        data-index={index}
+                        onClick={() => handleSeek(sub.start_seconds)}
+                        className={`
+                          w-full text-left p-3.5 rounded-xl transition-all duration-300 group relative
+                          ${
                             active
-                              ? "text-violet-400 font-semibold"
-                              : "text-white/30"
+                              ? "bg-gradient-to-r from-sky-500/15 to-blue-500/15 border border-sky-500/30 shadow-lg shadow-sky-500/10 scale-[1.02]"
+                              : isPast
+                              ? "bg-secondary/30 border border-transparent hover:bg-secondary/50 hover:border-border opacity-60 hover:opacity-100"
+                              : "bg-secondary/30 border border-transparent hover:bg-secondary/50 hover:border-border"
+                          }
+                        `}
+                      >
+                        {/* Active indicator line */}
+                        {active && (
+                          <div className="absolute left-0 top-3 bottom-3 w-0.5 bg-gradient-to-b from-sky-500 to-blue-400 rounded-full" />
+                        )}
+
+                        {/* Timestamp */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock
+                            className={`w-3 h-3 ${
+                              active ? "text-primary" : "text-muted-foreground/40"
+                            }`}
+                          />
+                          <span
+                            className={`text-xs font-mono ${
+                              active
+                                ? "text-primary font-semibold"
+                                : "text-muted-foreground/50"
+                            }`}
+                          >
+                            {formatTime(sub.start_seconds)} —{" "}
+                            {formatTime(sub.end_seconds)}
+                          </span>
+                        </div>
+
+                        {/* English Text */}
+                        <p
+                          className={`text-sm leading-relaxed ${
+                            active
+                              ? "text-foreground font-medium"
+                              : "text-foreground/60 group-hover:text-foreground/80"
                           }`}
                         >
-                          {formatTime(sub.start_seconds)} —{" "}
-                          {formatTime(sub.end_seconds)}
-                        </span>
-                      </div>
+                          {sub.text_en}
+                        </p>
 
-                      {/* English Text */}
-                      <p
-                        className={`text-sm leading-relaxed ${
-                          active
-                            ? "text-white font-medium"
-                            : "text-white/60 group-hover:text-white/80"
-                        }`}
-                      >
-                        {sub.text_en}
-                      </p>
-
-                      {/* Translated Text */}
-                      <p
-                        className={`text-sm leading-relaxed mt-1.5 ${
-                          active
-                            ? "text-violet-300"
-                            : "text-white/30 group-hover:text-white/50"
-                        }`}
-                      >
-                        {sub.text_translated}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+                        {/* Translated Text */}
+                        <p
+                          className={`text-sm leading-relaxed mt-1.5 ${
+                            active
+                              ? "text-sky-700"
+                              : "text-muted-foreground/50 group-hover:text-muted-foreground/70"
+                          }`}
+                        >
+                          {sub.text_translated}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+              )}
+            </Card>
           </div>
         </div>
       </div>

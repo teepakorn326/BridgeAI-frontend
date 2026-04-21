@@ -1,0 +1,63 @@
+{
+  "nav": {
+    "signIn": "Sign in",
+    "getStarted": "Get started",
+    "signOut": "Sign out",
+    "tagline": "Creator Portal"
+  },
+  "landing": {
+    "eyebrow": "Bilingual subtitles for online lectures",
+    "title": "Learn from any lecture — in the language you think in.",
+    "subtitle": "EduCaption adds synced subtitles and study materials to Echo360, Coursera, Udemy, and YouTube. Because English shouldn't decide who gets to learn.",
+    "ctaPrimary": "Get started",
+    "ctaSecondary": "Install the extension",
+    "problem": "Most of the best coursework on the internet is in English. For millions of learners across Southeast Asia, that is a wall — not a ladder.",
+    "howItWorksTitle": "How it works",
+    "steps": [
+      {
+        "num": "01",
+        "title": "Open a lecture",
+        "desc": "Drop into Echo360, Coursera, Udemy, or YouTube. The extension finds the video player and its transcript."
+      },
+      {
+        "num": "02",
+        "title": "Pick a language",
+        "desc": "Thai, Chinese, Vietnamese, Indonesian, Japanese, Korean, Spanish, and more. Translations happen in the background."
+      },
+      {
+        "num": "03",
+        "title": "Study alongside",
+        "desc": "Bilingual subtitles stay in sync with playback. Generate a summary, quiz, or vocabulary list whenever you need one."
+      }
+    ],
+    "platformsTitle": "Supported platforms",
+    "closingTitle": "English shouldn't be the gatekeeper.",
+    "closingBody": "EduCaption is a small project with a narrow job: keep the subtitles honest, keep the study material useful, and get out of the way.",
+    "footerLeft": "EduCaption",
+    "footerRight": "A student project for the WSTI Hackathon, 2026."
+  },
+  "home": {
+    "welcome": "Welcome back",
+    "subtitle": "Pick up where you left off, or add a new lecture.",
+    "addLecture": "Add lecture",
+    "continueTitle": "Continue learning",
+    "libraryTitle": "Your library",
+    "allTab": "All",
+    "searchPlaceholder": "Search lectures",
+    "empty": "No lectures yet.",
+    "emptySubtitle": "Add your first lecture to get started.",
+    "emptyFiltered": "No lectures match your filters.",
+    "coursesCount": "{count} lecture(s)",
+    "openLecture": "Open",
+    "addPanel": {
+      "title": "Add a new lecture",
+      "description": "Paste a YouTube URL and pick your language.",
+      "urlLabel": "Video URL",
+      "urlPlaceholder": "https://www.youtube.com/watch?v=...",
+      "langLabel": "Target language",
+      "submit": "Generate",
+      "cancel": "Cancel",
+      "invalidUrl": "Please enter a valid YouTube URL."
+    }
+  }
+}

@@ -7,7 +7,7 @@ import CoursePlayer from "@/components/CoursePlayer";
 import { ProcessResponse } from "@/types";
 import { API_BASE } from "@/lib/api";
 
-function CoursePageInner() {
+function YoutubeCourseInner() {
   const router = useRouter();
   const params = useSearchParams();
   const v = params.get("v");
@@ -25,6 +25,7 @@ function CoursePageInner() {
     const videoUrl = `https://www.youtube.com/watch?v=${v}`;
     fetch(`${API_BASE}/api/process-course`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ video_url: videoUrl, target_lang: lang }),
     })
@@ -45,7 +46,7 @@ function CoursePageInner() {
         <div className="text-center space-y-4">
           <p className="text-destructive">{error}</p>
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/home")}
             className="text-sm text-sky-500 hover:underline"
           >
             ← Back to dashboard
@@ -66,13 +67,13 @@ function CoursePageInner() {
     );
   }
 
-  return <CoursePlayer data={data} onBack={() => router.push("/")} />;
+  return <CoursePlayer data={data} onBack={() => router.push("/home")} />;
 }
 
-export default function CoursePage() {
+export default function YoutubeCoursePage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
-      <CoursePageInner />
+      <YoutubeCourseInner />
     </Suspense>
   );
 }

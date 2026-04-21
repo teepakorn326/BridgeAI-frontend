@@ -14,6 +14,8 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { ProcessResponse, SubtitleLine } from "@/types";
 import { API_BASE } from "@/lib/api";
@@ -62,11 +64,13 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [vocab, setVocab] = useState<VocabEntry[] | null>(null);
   const [vocabLoading, setVocabLoading] = useState(false);
+  const [errors, setErrors] = useState<Partial<Record<TabKey, string>>>({});
 
   const fetchStudyMaterial = useCallback(
     async (kind: "summarize" | "quiz" | "vocab") => {
       const res = await fetch(`${API_BASE}/api/${kind}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           video_url: data.video_url,
@@ -82,30 +86,58 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
     [data.video_url, data.target_lang]
   );
 
+  const loadSummary = useCallback(() => {
+    setSummaryLoading(true);
+    setErrors((e) => ({ ...e, summary: undefined }));
+    fetchStudyMaterial("summarize")
+      .then((r) => setSummary(r.summary))
+      .catch((e) => setErrors((prev) => ({ ...prev, summary: e.message })))
+      .finally(() => setSummaryLoading(false));
+  }, [fetchStudyMaterial]);
+
+  const loadQuiz = useCallback(() => {
+    setQuizLoading(true);
+    setErrors((e) => ({ ...e, quiz: undefined }));
+    fetchStudyMaterial("quiz")
+      .then((r) => setQuiz(r.quiz))
+      .catch((e) => setErrors((prev) => ({ ...prev, quiz: e.message })))
+      .finally(() => setQuizLoading(false));
+  }, [fetchStudyMaterial]);
+
+  const loadVocab = useCallback(() => {
+    setVocabLoading(true);
+    setErrors((e) => ({ ...e, vocab: undefined }));
+    fetchStudyMaterial("vocab")
+      .then((r) => setVocab(r.vocab))
+      .catch((e) => setErrors((prev) => ({ ...prev, vocab: e.message })))
+      .finally(() => setVocabLoading(false));
+  }, [fetchStudyMaterial]);
+
   // Lazy-load each tab's data on first open
   useEffect(() => {
-    if (activeTab === "summary" && summary === null && !summaryLoading) {
-      setSummaryLoading(true);
-      fetchStudyMaterial("summarize")
-        .then((r) => setSummary(r.summary))
-        .catch((e) => setSummary(`Error: ${e.message}`))
-        .finally(() => setSummaryLoading(false));
+    if (activeTab === "summary" && summary === null && !summaryLoading && !errors.summary) {
+      loadSummary();
     }
-    if (activeTab === "quiz" && quiz === null && !quizLoading) {
-      setQuizLoading(true);
-      fetchStudyMaterial("quiz")
-        .then((r) => setQuiz(r.quiz))
-        .catch(() => setQuiz([]))
-        .finally(() => setQuizLoading(false));
+    if (activeTab === "quiz" && quiz === null && !quizLoading && !errors.quiz) {
+      loadQuiz();
     }
-    if (activeTab === "vocab" && vocab === null && !vocabLoading) {
-      setVocabLoading(true);
-      fetchStudyMaterial("vocab")
-        .then((r) => setVocab(r.vocab))
-        .catch(() => setVocab([]))
-        .finally(() => setVocabLoading(false));
+    if (activeTab === "vocab" && vocab === null && !vocabLoading && !errors.vocab) {
+      loadVocab();
     }
-  }, [activeTab, summary, summaryLoading, quiz, quizLoading, vocab, vocabLoading, fetchStudyMaterial]);
+  }, [activeTab, summary, summaryLoading, quiz, quizLoading, vocab, vocabLoading, errors, loadSummary, loadQuiz, loadVocab]);
+
+  const ErrorBanner = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+    <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-700">
+      <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium">Failed to load</p>
+        <p className="text-xs text-red-600/80 mt-0.5 break-words">{message}</p>
+      </div>
+      <Button size="sm" variant="outline" className="h-7 gap-1" onClick={onRetry}>
+        <RefreshCw className="w-3 h-3" /> Retry
+      </Button>
+    </div>
+  );
 
   const handleTimeUpdate = useCallback(
     (e: React.SyntheticEvent<HTMLVideoElement>) => {
@@ -319,6 +351,9 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
                         Generating summary...
                       </div>
                     )}
+                    {errors.summary && !summaryLoading && (
+                      <ErrorBanner message={errors.summary} onRetry={loadSummary} />
+                    )}
                     {summary && (
                       <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
                         {summary}
@@ -337,6 +372,9 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Generating quiz...
                       </div>
+                    )}
+                    {errors.quiz && !quizLoading && (
+                      <ErrorBanner message={errors.quiz} onRetry={loadQuiz} />
                     )}
                     {quiz && quiz.length > 0 && (
                       <>
@@ -420,6 +458,9 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
                         <Loader2 className="w-4 h-4 animate-spin" />
                         Extracting vocabulary...
                       </div>
+                    )}
+                    {errors.vocab && !vocabLoading && (
+                      <ErrorBanner message={errors.vocab} onRetry={loadVocab} />
                     )}
                     {vocab &&
                       vocab.map((v, i) => (

@@ -13,6 +13,7 @@ export interface ProcessRequest {
 export interface ProcessResponse {
   video_id: string;
   video_url: string;
+  source?: string;
   target_lang: string;
   title: string;
   subtitles: SubtitleLine[];

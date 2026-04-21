@@ -13,7 +13,7 @@ import zh from "@/locales/zh.json";
 export type Locale = "en" | "zh";
 
 const MESSAGES: Record<Locale, unknown> = { en, zh };
-const STORAGE_KEY = "educaption.locale";
+const STORAGE_KEY = "bridgeai.locale";
 
 interface I18nContextValue {
   locale: Locale;

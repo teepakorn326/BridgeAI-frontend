@@ -8,7 +8,7 @@
   "landing": {
     "eyebrow": "为在线课程提供双语字幕",
     "title": "用你熟悉的语言，听懂任何一堂课。",
-    "subtitle": "EduCaption 为 Echo360、Coursera、Udemy 和 YouTube 视频添加同步字幕与学习材料。语言，不该是学习的门槛。",
+    "subtitle": "BridgeAI 为 Echo360、Coursera、Udemy 和 YouTube 视频添加同步字幕与学习材料。语言，不该是学习的门槛。",
     "ctaPrimary": "开始使用",
     "ctaSecondary": "安装浏览器扩展",
     "problem": "互联网上最好的课程，大多是英文的。对东南亚数百万学习者来说，这不是阶梯，而是一堵墙。",
@@ -32,8 +32,8 @@
     ],
     "platformsTitle": "支持的平台",
     "closingTitle": "学习的门槛，不该是语言。",
-    "closingBody": "EduCaption 是一个小而专注的工具：把字幕做准，把学习材料做对，然后把路让开。",
-    "footerLeft": "EduCaption",
+    "closingBody": "BridgeAI 是一个小而专注的工具：把字幕做准，把学习材料做对，然后把路让开。",
+    "footerLeft": "BridgeAI",
     "footerRight": "WSTI 黑客松 2026 学生作品。"
   },
   "home": {

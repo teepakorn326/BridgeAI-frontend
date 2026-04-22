@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useState } from "react";
+import React, { FormEvent, Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -11,7 +11,7 @@ import { AuthShell, OAuthButtons } from "@/components/AuthShell";
 import { useAuth } from "@/lib/auth";
 import { API_BASE } from "@/lib/api";
 
-export default function LoginPage() {
+function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/";
@@ -133,5 +133,13 @@ export default function LoginPage() {
         </form>
       </div>
     </AuthShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<AuthShell title="Sign in" subtitle="Loading…"><div /></AuthShell>}>
+      <LoginInner />
+    </Suspense>
   );
 }

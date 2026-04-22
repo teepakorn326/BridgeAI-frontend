@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { AuthShell } from "@/components/AuthShell";
 import { useAuth } from "@/lib/auth";
 
-export default function AuthCallbackPage() {
+function AuthCallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { refresh } = useAuth();
@@ -32,5 +32,21 @@ export default function AuthCallbackPage() {
         <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
       </div>
     </AuthShell>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <AuthShell title="Signing you in" subtitle="Just a moment...">
+          <div className="flex justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
+          </div>
+        </AuthShell>
+      }
+    >
+      <AuthCallbackInner />
+    </Suspense>
   );
 }

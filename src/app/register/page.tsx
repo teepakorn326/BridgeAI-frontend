@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useEffect, useState } from "react";
+import React, { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Loader2, X } from "lucide-react";
@@ -44,7 +44,7 @@ const FALLBACK_COUNTRIES = [
   "United Kingdom",
 ];
 
-export default function RegisterPage() {
+function RegisterInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/";
@@ -391,5 +391,13 @@ export default function RegisterPage() {
         </form>
       </div>
     </AuthShell>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<AuthShell title="Create your account" subtitle="Loading…"><div /></AuthShell>}>
+      <RegisterInner />
+    </Suspense>
   );
 }

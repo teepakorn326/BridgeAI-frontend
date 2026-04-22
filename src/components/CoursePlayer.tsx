@@ -330,10 +330,14 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
   // Render the chat answer as markdown while preserving [N] → seek pill.
   const renderAnswer = (content: string, citations?: ChatCitation[]) => {
     const byN = new Map((citations || []).map((c) => [c.n, c]));
-    const wrap =
-      (tag: "p" | "li" | "strong" | "em" | "h4" | "h5" | "h6" | "td" | "th") =>
-      ({ children }: { children?: React.ReactNode }) =>
+    const wrap = (
+      tag: "p" | "li" | "strong" | "em" | "h4" | "h5" | "h6" | "td" | "th"
+    ) => {
+      const MarkdownNode = ({ children }: { children?: React.ReactNode }) =>
         React.createElement(tag, {}, injectCites(children, byN));
+      MarkdownNode.displayName = `MarkdownNode(${tag})`;
+      return MarkdownNode;
+    };
     return (
       <div className="prose prose-xs prose-neutral dark:prose-invert max-w-none text-[11px]
                       prose-p:my-1 prose-p:leading-relaxed

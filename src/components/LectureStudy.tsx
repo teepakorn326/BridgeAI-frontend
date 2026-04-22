@@ -283,10 +283,14 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
   // headings, lists) while still turning inline [N] markers into seek pills.
   const renderAnswer = (content: string, citations?: ChatCitation[]) => {
     const byN = new Map((citations || []).map((c) => [c.n, c]));
-    const wrap =
-      (tag: "p" | "li" | "strong" | "em" | "h4" | "h5" | "h6" | "td" | "th") =>
-      ({ children }: { children?: React.ReactNode }) =>
+    const wrap = (
+      tag: "p" | "li" | "strong" | "em" | "h4" | "h5" | "h6" | "td" | "th"
+    ) => {
+      const MarkdownNode = ({ children }: { children?: React.ReactNode }) =>
         React.createElement(tag, {}, injectCites(children, byN));
+      MarkdownNode.displayName = `MarkdownNode(${tag})`;
+      return MarkdownNode;
+    };
     return (
       <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none
                       prose-p:my-1.5 prose-p:leading-relaxed

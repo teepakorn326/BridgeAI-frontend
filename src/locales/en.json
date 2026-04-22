@@ -10,6 +10,7 @@
     "title": "Learn from any lecture — in the language you think in.",
     "subtitle": "BridgeAI adds synced subtitles and study materials to Echo360, Coursera, Udemy, and YouTube. Because English shouldn't decide who gets to learn.",
     "ctaPrimary": "Get started",
+    "ctaLoggedIn": "Go to my learning",
     "ctaSecondary": "Install the extension",
     "problem": "Most of the best coursework on the internet is in English. For millions of learners across Southeast Asia, that is a wall — not a ladder.",
     "howItWorksTitle": "How it works",
@@ -47,6 +48,8 @@
     "empty": "No lectures yet.",
     "emptySubtitle": "Add your first lecture to get started.",
     "emptyFiltered": "No lectures match your filters.",
+    "libraryErrorTitle": "We couldn't load your library",
+    "libraryRetry": "Try again",
     "coursesCount": "{count} lecture(s)",
     "openLecture": "Open",
     "addPanel": {

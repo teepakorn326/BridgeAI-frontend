@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Loader2, X, ChevronRight } from "lucide-react";
 import { API_BASE } from "@/lib/api";
@@ -68,6 +68,7 @@ export default function HomePage() {
 
   const [courses, setCourses] = useState<CourseSummary[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [coursesError, setCoursesError] = useState<string | null>(null);
 
   const [showAdd, setShowAdd] = useState(false);
   const [videoURL, setVideoURL] = useState("");
@@ -82,15 +83,26 @@ export default function HomePage() {
     if (!authLoading && !user) router.replace("/login?next=/home");
   }, [authLoading, user, router]);
 
+  const loadCourses = useCallback(() => {
+    setLoadingCourses(true);
+    setCoursesError(null);
+    fetch(`${API_BASE}/api/courses`, { credentials: "include" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`Server returned ${r.status}`);
+        return r.json();
+      })
+      .then((data) => setCourses(data.courses || []))
+      .catch((err) => {
+        setCourses([]);
+        setCoursesError(err.message || "Could not reach the server");
+      })
+      .finally(() => setLoadingCourses(false));
+  }, []);
+
   useEffect(() => {
     if (!user) return;
-    setLoadingCourses(true);
-    fetch(`${API_BASE}/api/courses`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => setCourses(data.courses || []))
-      .catch(() => setCourses([]))
-      .finally(() => setLoadingCourses(false));
-  }, [user]);
+    loadCourses();
+  }, [user, loadCourses]);
 
   const firstName = useMemo(() => {
     if (!user) return "";
@@ -140,6 +152,8 @@ export default function HomePage() {
       return;
     }
     setSubmitting(true);
+    // Safety net: re-enable the button if navigation never completes.
+    setTimeout(() => setSubmitting(false), 8000);
     router.push(
       `/course/youtube?v=${encodeURIComponent(id)}&lang=${encodeURIComponent(targetLang)}`
     );
@@ -211,7 +225,10 @@ export default function HomePage() {
                   type="url"
                   required
                   value={videoURL}
-                  onChange={(e) => setVideoURL(e.target.value)}
+                  onChange={(e) => {
+                    setVideoURL(e.target.value);
+                    if (formError) setFormError(null);
+                  }}
                   placeholder={t("home.addPanel.urlPlaceholder")}
                   disabled={submitting}
                 />
@@ -260,13 +277,13 @@ export default function HomePage() {
 
         {continueCourses.length > 0 && (
           <section className="mb-14">
-            <div className="flex items-center justify-between mb-4">
+            {/* <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 {t("home.continueTitle")}
               </h2>
               <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
-            </div>
-            <div className="flex gap-4 overflow-x-auto scrollbar-thin pb-3 -mx-6 px-6">
+            </div> */}
+            {/* <div className="flex gap-4 overflow-x-auto scrollbar-thin pb-3 -mx-6 px-6">
               {continueCourses.map((c) => (
                 <CourseCard
                   key={`${c.video_id}-${c.target_lang}`}
@@ -278,7 +295,7 @@ export default function HomePage() {
                   onClick={() => openCourse(c)}
                 />
               ))}
-            </div>
+            </div> */}
           </section>
         )}
 
@@ -319,6 +336,22 @@ export default function HomePage() {
           {loadingCourses ? (
             <div className="py-20 flex justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
+            </div>
+          ) : coursesError ? (
+            <div className="py-20 text-center border border-dashed border-destructive/40 rounded-2xl">
+              <p className="text-base font-medium text-foreground/80">
+                {t("home.libraryErrorTitle")}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {coursesError}
+              </p>
+              <Button
+                onClick={loadCourses}
+                variant="outline"
+                className="mt-6"
+              >
+                {t("home.libraryRetry")}
+              </Button>
             </div>
           ) : filteredCourses.length === 0 ? (
             <EmptyState

@@ -16,7 +16,12 @@ import {
   XCircle,
   AlertTriangle,
   RefreshCw,
+  MessageCircle,
+  Send,
+  ListOrdered,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ProcessResponse, SubtitleLine } from "@/types";
 import { API_BASE } from "@/lib/api";
 
@@ -45,7 +50,27 @@ interface VocabEntry {
   definition: string;
 }
 
-type TabKey = "transcript" | "summary" | "quiz" | "vocab";
+interface ChatCitation {
+  n: number;
+  start_seconds: number;
+  end_seconds: number;
+  text_en: string;
+}
+
+interface ChatMsg {
+  role: "user" | "assistant";
+  content: string;
+  citations?: ChatCitation[];
+}
+
+interface Chapter {
+  start_seconds: number;
+  end_seconds: number;
+  title_en: string;
+  title_translated: string;
+}
+
+type TabKey = "transcript" | "summary" | "quiz" | "vocab" | "chat";
 
 export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
   const playerRef = useRef<any>(null);
@@ -65,6 +90,17 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
   const [vocab, setVocab] = useState<VocabEntry[] | null>(null);
   const [vocabLoading, setVocabLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<TabKey, string>>>({});
+
+  // Chat state (A: timestamped citations that jump the video)
+  const [chatMsgs, setChatMsgs] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+
+  // Chapter state (B: topical segmentation strip under the video)
+  const [chapters, setChapters] = useState<Chapter[] | null>(null);
+  const [chaptersLoading, setChaptersLoading] = useState(false);
+  const [chaptersError, setChaptersError] = useState<string | null>(null);
 
   const fetchStudyMaterial = useCallback(
     async (kind: "summarize" | "quiz" | "vocab") => {
@@ -112,6 +148,38 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
       .catch((e) => setErrors((prev) => ({ ...prev, vocab: e.message })))
       .finally(() => setVocabLoading(false));
   }, [fetchStudyMaterial]);
+
+  const loadChapters = useCallback(() => {
+    setChaptersLoading(true);
+    setChaptersError(null);
+    fetch(`${API_BASE}/api/chapters`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        video_url: data.video_url,
+        target_lang: data.target_lang,
+      }),
+    })
+      .then(async (r) => {
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to load chapters");
+        }
+        return r.json();
+      })
+      .then((r) => setChapters(r.chapters || []))
+      .catch((e) => setChaptersError((e as Error).message))
+      .finally(() => setChaptersLoading(false));
+  }, [data.video_url, data.target_lang]);
+
+  // Auto-load chapters once on mount — they're always visible under the video.
+  useEffect(() => {
+    if (chapters === null && !chaptersLoading && !chaptersError) {
+      loadChapters();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Lazy-load each tab's data on first open
   useEffect(() => {
@@ -176,6 +244,126 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
       playerRef.current.play();
       setIsPlaying(true);
     }
+  };
+
+  const sendChat = async () => {
+    const text = chatInput.trim();
+    if (!text || chatLoading) return;
+    const next: ChatMsg[] = [...chatMsgs, { role: "user", content: text }];
+    setChatMsgs(next);
+    setChatInput("");
+    setChatLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/chat`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video_id: data.video_id,
+          video_url: data.video_url,
+          target_lang: data.target_lang,
+          messages: next.map(({ role, content }) => ({ role, content })),
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Chat failed");
+      }
+      const { answer, citations } = await res.json();
+      setChatMsgs((msgs) => [
+        ...msgs,
+        { role: "assistant", content: answer, citations: citations || [] },
+      ]);
+    } catch (err) {
+      setChatMsgs((msgs) => [
+        ...msgs,
+        { role: "assistant", content: `Error: ${(err as Error).message}` },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMsgs, chatLoading]);
+
+  // Recursively replaces [N] in string children with a seek button.
+  const injectCites = (
+    node: React.ReactNode,
+    byN: Map<number, ChatCitation>
+  ): React.ReactNode => {
+    if (typeof node === "string") {
+      if (byN.size === 0 || !node.includes("[")) return node;
+      const parts = node.split(/(\[\d+\])/g);
+      if (parts.length === 1) return node;
+      return parts.map((p, i) => {
+        const m = p.match(/^\[(\d+)\]$/);
+        if (!m) return <React.Fragment key={i}>{p}</React.Fragment>;
+        const cite = byN.get(parseInt(m[1], 10));
+        if (!cite) return <React.Fragment key={i}>{p}</React.Fragment>;
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => handleSeek(cite.start_seconds)}
+            title={`${formatTime(cite.start_seconds)} — ${cite.text_en}`}
+            className="inline-flex items-center gap-0.5 mx-0.5 px-1.5 py-0.5 rounded-md
+                       bg-sky-500/15 border border-sky-500/30 text-sky-700
+                       text-[10px] font-semibold font-mono hover:bg-sky-500/25 transition"
+          >
+            ▶ {formatTime(cite.start_seconds)}
+          </button>
+        );
+      });
+    }
+    if (Array.isArray(node)) {
+      return node.map((c, i) => (
+        <React.Fragment key={i}>{injectCites(c, byN)}</React.Fragment>
+      ));
+    }
+    return node;
+  };
+
+  // Render the chat answer as markdown while preserving [N] → seek pill.
+  const renderAnswer = (content: string, citations?: ChatCitation[]) => {
+    const byN = new Map((citations || []).map((c) => [c.n, c]));
+    const wrap =
+      (tag: "p" | "li" | "strong" | "em" | "h4" | "h5" | "h6" | "td" | "th") =>
+      ({ children }: { children?: React.ReactNode }) =>
+        React.createElement(tag, {}, injectCites(children, byN));
+    return (
+      <div className="prose prose-xs prose-neutral dark:prose-invert max-w-none text-[11px]
+                      prose-p:my-1 prose-p:leading-relaxed
+                      prose-headings:font-semibold prose-headings:tracking-tight
+                      prose-h1:text-xs prose-h1:mt-2 prose-h1:mb-0.5
+                      prose-h2:text-xs prose-h2:mt-2 prose-h2:mb-0.5
+                      prose-h3:text-xs prose-h3:mt-1.5 prose-h3:mb-0.5
+                      prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5
+                      prose-strong:text-foreground">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            p: wrap("p"),
+            li: wrap("li"),
+            strong: wrap("strong"),
+            em: wrap("em"),
+            h1: wrap("h4"),
+            h2: wrap("h4"),
+            h3: wrap("h5"),
+            h4: wrap("h5"),
+            h5: wrap("h6"),
+            h6: wrap("h6"),
+            td: wrap("td"),
+            th: wrap("th"),
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+    );
   };
 
   const formatTime = (seconds: number): string => {
@@ -300,18 +488,89 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
           {/* Right: Tabbed Study Sidebar (30%) */}
           <div className="flex-[3] flex flex-col min-w-[320px] max-w-[450px]">
             <Card className="flex flex-col h-full overflow-hidden bg-card/50 border-border">
-              {/* Tab Strip */}
-              <div className="flex items-center border-b border-border">
+              {/* AI-generated chapters — topical segmentation, above the tab bar */}
+              {(chaptersLoading || (chapters && chapters.length > 0) || chaptersError) && (
+                <div className="px-3 pt-3 pb-2 border-b border-border">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                      <ListOrdered className="w-3 h-3" />
+                      Chapters
+                      <Badge variant="outline" className="text-[9px] ml-1 border-sky-500/30 text-sky-700 px-1 py-0">
+                        AI
+                      </Badge>
+                    </div>
+                    {chaptersError && (
+                      <button
+                        onClick={loadChapters}
+                        className="text-[10px] text-sky-700 hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCw className="w-3 h-3" /> Retry
+                      </button>
+                    )}
+                  </div>
+                  {chaptersLoading && (
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Identifying topical chapters…
+                    </div>
+                  )}
+                  {chaptersError && !chaptersLoading && (
+                    <p className="text-[10px] text-muted-foreground">{chaptersError}</p>
+                  )}
+                  {chapters && chapters.length > 0 && (
+                    <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
+                      {chapters.map((ch, i) => {
+                        const active =
+                          currentTime >= ch.start_seconds &&
+                          currentTime < ch.end_seconds;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => handleSeek(ch.start_seconds)}
+                            title={ch.title_translated}
+                            className={`shrink-0 text-left rounded-md px-2 py-1.5 border transition ${
+                              active
+                                ? "bg-gradient-to-r from-sky-500/15 to-blue-500/15 border-sky-500/40"
+                                : "bg-secondary/40 border-border hover:border-sky-500/30 hover:bg-secondary/60"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] font-mono tabular-nums text-muted-foreground">
+                                {formatTime(ch.start_seconds)}
+                              </span>
+                              <span className="text-[9px] text-muted-foreground/50">·</span>
+                              <span className="text-[9px] text-muted-foreground">
+                                {String(i + 1).padStart(2, "0")}
+                              </span>
+                            </div>
+                            <div className="text-[11px] font-medium text-foreground/90 mt-0.5 whitespace-nowrap">
+                              {ch.title_en}
+                            </div>
+                            <div className="text-[10px] text-sky-700 mt-0.5 whitespace-nowrap">
+                              {ch.title_translated}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab Strip — scrollable horizontally so Chat stays reachable
+                  even when the sidebar is narrow. */}
+              <div className="flex items-center border-b border-border overflow-x-auto scrollbar-thin">
                 {[
                   { key: "transcript" as const, label: "Transcript", icon: Clock },
                   { key: "summary" as const, label: "Summary", icon: FileText },
                   { key: "quiz" as const, label: "Quiz", icon: HelpCircle },
                   { key: "vocab" as const, label: "Vocab", icon: BookOpen },
+                  { key: "chat" as const, label: "Chat", icon: MessageCircle },
                 ].map(({ key, label, icon: Icon }) => (
                   <button
                     key={key}
                     onClick={() => setActiveTab(key)}
-                    className={`flex-1 px-3 py-3 text-xs font-medium uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 border-b-2 ${
+                    className={`shrink-0 px-4 py-3 text-xs font-medium uppercase tracking-wider whitespace-nowrap transition-all flex items-center gap-1.5 border-b-2 ${
                       activeTab === key
                         ? "border-sky-500 text-sky-700 bg-sky-500/5"
                         : "border-transparent text-muted-foreground hover:text-foreground/80 hover:bg-secondary/30"
@@ -485,6 +744,76 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
                       ))}
                   </div>
                 </ScrollArea>
+              )}
+
+              {/* Chat Tab — citations ([N]) become clickable seek buttons */}
+              {activeTab === "chat" && (
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div
+                    ref={chatScrollRef}
+                    className="flex-1 overflow-y-auto p-4 space-y-3"
+                  >
+                    {chatMsgs.length === 0 && (
+                      <div className="text-xs text-muted-foreground py-6 text-center leading-relaxed">
+                        <MessageCircle className="w-5 h-5 mx-auto mb-2 text-muted-foreground/60" />
+                        Ask anything about this lecture.
+                        <br />
+                        Answers cite segments — click{" "}
+                        <span className="font-mono text-sky-700">▶ 0:00</span> to jump.
+                      </div>
+                    )}
+                    {chatMsgs.map((m, i) => (
+                      <div
+                        key={i}
+                        className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[90%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
+                            m.role === "user"
+                              ? "bg-gradient-to-r from-sky-600 to-blue-600 text-white"
+                              : "bg-secondary/50 border border-border text-foreground/90"
+                          }`}
+                        >
+                          {m.role === "assistant"
+                            ? renderAnswer(m.content, m.citations)
+                            : <span className="whitespace-pre-wrap">{m.content}</span>}
+                        </div>
+                      </div>
+                    ))}
+                    {chatLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-secondary/50 border border-border rounded-2xl px-3 py-2 text-xs flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Thinking…
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      sendChat();
+                    }}
+                    className="p-3 border-t border-border flex gap-2 bg-background/60"
+                  >
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Ask the lecture…"
+                      disabled={chatLoading}
+                      className="flex-1 h-9 rounded-md border border-border bg-secondary/50 px-3 text-xs outline-none focus:border-sky-500"
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!chatInput.trim() || chatLoading}
+                      className="bg-gradient-to-r from-sky-600 to-blue-600 text-white h-9"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </Button>
+                  </form>
+                </div>
               )}
 
               {/* Subtitle List (transcript tab only) */}

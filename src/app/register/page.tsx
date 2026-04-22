@@ -90,7 +90,6 @@ export default function RegisterPage() {
         );
         const data: { name: string }[] = await res.json();
         const names = Array.from(new Set(data.map((u) => u.name))).sort();
-        console.log('names', names)
         setUniversities(names);
       } catch {}
     };

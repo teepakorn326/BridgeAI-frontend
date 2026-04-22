@@ -5,8 +5,13 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 
 const PLATFORMS = ["Echo360", "Coursera", "Udemy", "YouTube"];
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+  "https://bridgeai.app";
 
 interface Step {
   num: string;
@@ -16,10 +21,69 @@ interface Step {
 
 export default function LandingPage() {
   const { t } = useT();
+  const { user } = useAuth();
   const steps = t<Step[]>("landing.steps");
+  const ctaHref = user ? "/home" : "/register";
+  const ctaLabel = user ? t("landing.ctaLoggedIn") : t("landing.ctaPrimary");
+
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: "BridgeAI",
+        url: SITE_URL,
+        logo: `${SITE_URL}/logo.png`,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${SITE_URL}/#website`,
+        url: SITE_URL,
+        name: "BridgeAI",
+        publisher: { "@id": `${SITE_URL}/#organization` },
+        inLanguage: ["en", "zh", "th"],
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: "BridgeAI",
+        applicationCategory: "EducationalApplication",
+        operatingSystem: "Web, Chrome Extension",
+        description:
+          "Bilingual subtitles plus AI summaries, quizzes, and vocabulary for Echo360, Coursera, Udemy, and YouTube lectures.",
+        url: SITE_URL,
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+        featureList: [
+          "Synced bilingual subtitles",
+          "AI lecture summaries",
+          "Auto-generated quizzes",
+          "Vocabulary extraction",
+          "Echo360, Coursera, Udemy, YouTube support",
+        ],
+      },
+      {
+        "@type": "HowTo",
+        name: t<string>("landing.howItWorksTitle"),
+        step: (Array.isArray(steps) ? steps : []).map((s, i) => ({
+          "@type": "HowToStep",
+          position: i + 1,
+          name: s.title,
+          text: s.desc,
+        })),
+      },
+    ],
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <section className="max-w-5xl mx-auto px-6 pt-20 pb-24 md:pt-28 md:pb-32">
         <p className="text-[11px] font-medium tracking-[0.22em] uppercase text-muted-foreground mb-8">
           {t("landing.eyebrow")}
@@ -31,9 +95,9 @@ export default function LandingPage() {
           {t("landing.subtitle")}
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-3">
-          <Link href="/register">
+          <Link href={ctaHref}>
             <Button size="lg" className="h-11 px-6">
-              {t("landing.ctaPrimary")}
+              {ctaLabel}
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
@@ -105,9 +169,9 @@ export default function LandingPage() {
           {t("landing.closingBody")}
         </p>
         <div className="mt-10">
-          <Link href="/register">
+          <Link href={ctaHref}>
             <Button size="lg" className="h-11 px-6">
-              {t("landing.ctaPrimary")}
+              {ctaLabel}
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>

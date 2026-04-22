@@ -10,6 +10,7 @@
     "title": "用你熟悉的语言，听懂任何一堂课。",
     "subtitle": "BridgeAI 为 Echo360、Coursera、Udemy 和 YouTube 视频添加同步字幕与学习材料。语言，不该是学习的门槛。",
     "ctaPrimary": "开始使用",
+    "ctaLoggedIn": "前往我的学习",
     "ctaSecondary": "安装浏览器扩展",
     "problem": "互联网上最好的课程，大多是英文的。对东南亚数百万学习者来说，这不是阶梯，而是一堵墙。",
     "howItWorksTitle": "使用方式",
@@ -47,6 +48,8 @@
     "empty": "还没有讲座。",
     "emptySubtitle": "添加第一个讲座开始使用。",
     "emptyFiltered": "没有符合条件的讲座。",
+    "libraryErrorTitle": "无法加载你的课程库",
+    "libraryRetry": "重试",
     "coursesCount": "{count} 个讲座",
     "openLecture": "打开",
     "addPanel": {

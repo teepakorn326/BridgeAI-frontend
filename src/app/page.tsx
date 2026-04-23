@@ -181,7 +181,15 @@ export default function LandingPage() {
       <footer className="border-t border-border/60">
         <div className="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between text-xs text-muted-foreground">
           <span>{t("landing.footerLeft")}</span>
-          <span>{t("landing.footerRight")}</span>
+          <div className="flex items-center gap-6">
+            <Link
+              href="/privacy"
+              className="hover:text-foreground transition-colors"
+            >
+              Privacy
+            </Link>
+            <span>{t("landing.footerRight")}</span>
+          </div>
         </div>
       </footer>
     </div>

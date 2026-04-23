@@ -23,10 +23,16 @@ async function proxy(
     target.searchParams.set(key, value);
   });
 
-  // Copy headers; strip Host so fetch sets the backend's host itself.
-  const headers = new Headers(req.headers);
-  headers.delete("host");
-  headers.delete("content-length"); // let fetch recompute after body re-read
+  // Whitelist only the headers the backend actually reads. Vercel's fetch()
+  // adds ~500 bytes of x-forwarded-* and x-vercel-ip-* geo headers on top of
+  // whatever we forward, which pushes the request past Render's edge limit
+  // and trips 431. Keeping just the essentials leaves headroom.
+  const headers = new Headers();
+  const keep = ["cookie", "authorization", "content-type", "accept", "user-agent"];
+  for (const name of keep) {
+    const v = req.headers.get(name);
+    if (v) headers.set(name, v);
+  }
 
   const init: RequestInit = {
     method: req.method,

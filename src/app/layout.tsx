@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import { Navbar } from "@/components/Navbar";
+import { MobileNotice } from "@/components/MobileNotice";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -108,6 +109,7 @@ export default function RootLayout({
       <body className="antialiased">
         <I18nProvider>
           <AuthProvider>
+            <MobileNotice />
             <Navbar />
             {children}
           </AuthProvider>

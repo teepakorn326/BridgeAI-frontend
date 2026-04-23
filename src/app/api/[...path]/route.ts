@@ -40,11 +40,23 @@ async function proxy(
 
   const upstream = await fetch(target.toString(), init);
 
-  // Pass through status, body, and headers (including Set-Cookie — Node fetch
-  // preserves multi-valued Set-Cookie arrays in the Headers object).
-  return new NextResponse(upstream.body, {
+  // Drop length/encoding headers — if we re-stream the body, Next.js will
+  // recompute them; keeping the old values makes the client wait for bytes
+  // that never match the declared count.
+  const responseHeaders = new Headers(upstream.headers);
+  responseHeaders.delete("content-length");
+  responseHeaders.delete("content-encoding");
+  responseHeaders.delete("transfer-encoding");
+
+  // For 3xx, send no body so the response closes immediately and the browser
+  // follows Location. Previously /api/auth/google hung because the redirect's
+  // HTML body stream wasn't flushing cleanly through NextResponse.
+  const body =
+    upstream.status >= 300 && upstream.status < 400 ? null : upstream.body;
+
+  return new NextResponse(body, {
     status: upstream.status,
-    headers: upstream.headers,
+    headers: responseHeaders,
   });
 }
 

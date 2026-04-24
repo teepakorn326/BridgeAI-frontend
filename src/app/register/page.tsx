@@ -85,7 +85,7 @@ function RegisterInner() {
       setUniversities([]);
       try {
         const res = await fetch(
-          `http://universities.hipolabs.com/search?country=${encodeURIComponent(country)}`,
+          `https://universities.hipolabs.com/search?country=${encodeURIComponent(country)}`,
           { signal: ctrl.signal }
         );
         const data: { name: string }[] = await res.json();

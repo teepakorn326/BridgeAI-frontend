@@ -444,12 +444,12 @@ export default function CoursePlayer({ data, onBack }: CoursePlayerProps) {
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                   onTimeUpdate={handleTimeUpdate}
-                  onReady={(player: any) => {
+                  onReady={() => {
                     // BridgeAI renders its own bilingual subtitles below the
                     // player. Force YouTube's native CC off so we don't show
                     // two subtitle tracks overlapping.
                     try {
-                      const internal = player?.getInternalPlayer?.();
+                      const internal = (playerRef.current as any)?.getInternalPlayer?.();
                       internal?.unloadModule?.("captions");
                       internal?.unloadModule?.("cc");
                     } catch {}

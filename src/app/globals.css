@@ -4,27 +4,27 @@
 
 @layer base {
   :root {
-    /* White background with sky-blue accents */
+    /* Enhanced white background with deeper accents */
     --background: 0 0% 100%;
-    --foreground: 215 25% 15%;
+    --foreground: 215 25% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 215 25% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
-    /* Sky blue primary (Tailwind sky-500) */
-    --primary: 199 89% 48%;
+    --popover-foreground: 215 25% 10%;
+    /* Deeper, more saturated primary color */
+    --primary: 199 89% 42%;
     --primary-foreground: 0 0% 100%;
     --secondary: 204 100% 97%;
-    --secondary-foreground: 215 25% 15%;
+    --secondary-foreground: 215 25% 10%;
     --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 215 16% 50%;
     --accent: 204 94% 94%;
     --accent-foreground: 199 89% 35%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
+    --border: 214 32% 90%;
     --input: 214 32% 91%;
-    --ring: 199 89% 48%;
+    --ring: 199 89% 42%;
     --radius: 0.75rem;
   }
 

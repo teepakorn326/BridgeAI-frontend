@@ -92,39 +92,39 @@ export default function LandingPage() {
       <section className="max-w-6xl mx-auto px-6 pt-6 pb-2 md:pt-10 md:pb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
           <div>
-            <p className="text-[11px] font-medium tracking-[0.22em] uppercase text-muted-foreground mb-8">
+            <p className="text-[11px] font-medium tracking-[0.22em] uppercase text-primary/70 mb-8">
               {t("landing.eyebrow")}
             </p>
-            <h1 className="text-4xl md:text-6xl font-semibold tracking-tight leading-[1.08]">
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight leading-[1.08] text-foreground">
               {t("landing.title")}
             </h1>
-            <p className="mt-6 text-lg text-muted-foreground max-w-2xl leading-relaxed">
+            <p className="mt-6 text-lg text-foreground/70 max-w-2xl leading-relaxed">
               {t("landing.subtitle")}
             </p>
             <div className="mt-10 flex flex-wrap items-center gap-3">
               <Link href={ctaHref}>
-                <Button size="lg" className="h-11 px-6">
+                <Button size="lg" className="h-11 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-shadow">
                   {ctaLabel}
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
               <a href="/bridgeai-extension.zip" download>
-                <Button size="lg" variant="outline" className="h-11 px-6">
+                <Button size="lg" variant="outline" className="h-11 px-6 border-2 hover:bg-blue-50">
                   <Download className="w-4 h-4 mr-1" />
                   Download extension for Chrome
                 </Button>
               </a>
               <Link href="/link-extension">
-                <Button size="lg" variant="ghost" className="h-11 px-6">
+                <Button size="lg" variant="ghost" className="h-11 px-6 hover:bg-blue-50 text-foreground">
                   {t("landing.ctaSecondary")}
                 </Button>
               </Link>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
-              After downloading: unzip, open <code className="font-mono text-foreground/80">chrome://extensions</code>, enable Developer mode (top-right), then click <span className="text-foreground/80">Load unpacked</span> and select the unzipped folder.
+            <p className="mt-4 text-xs text-foreground/60 leading-relaxed">
+              After downloading: unzip, open <code className="font-mono text-foreground/90 bg-gray-100 px-2 py-1 rounded">chrome://extensions</code>, enable Developer mode (top-right), then click <span className="text-foreground/90 font-medium">Load unpacked</span> and select the unzipped folder.
             </p>
           </div>
-          <div className="rounded-lg overflow-hidden shadow-lg border border-border/50 hidden md:block">
+          <div className="rounded-xl overflow-hidden shadow-xl border border-border/80 hidden md:block hover:shadow-2xl transition-shadow">
             <img 
               src="/tutorial-guide.png" 
               alt="BridgeAI learning interface" 
@@ -135,8 +135,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section className="w-full bg-background px-6 py-2">
-        <div className="max-w-6xl mx-auto rounded-lg overflow-hidden border border-border/50 shadow-md">
+      <section className="w-full bg-gradient-to-b from-white via-blue-50/30 to-white px-6 py-2">
+        <div className="max-w-6xl mx-auto rounded-xl overflow-hidden border-2 border-blue-200/50 shadow-xl hover:shadow-2xl transition-shadow">
           <video 
             width="100%" 
             height="auto" 
@@ -152,8 +152,8 @@ export default function LandingPage() {
       <hr className="max-w-5xl mx-auto border-border/60" />
 
       <section className="max-w-5xl mx-auto px-6 py-20">
-        <div className="bg-gradient-to-r from-blue-50 to-blue-50 dark:from-blue-950/30 dark:to-blue-950/30 border-l-4 border-blue-500 px-8 py-8 rounded-r-lg">
-          <p className="text-2xl md:text-3xl font-semibold leading-snug max-w-3xl text-blue-900 dark:text-blue-100">
+        <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-50 dark:from-blue-950/40 dark:via-blue-950/40 dark:to-blue-950/40 border-l-4 border-blue-600 px-8 py-10 rounded-r-lg shadow-md hover:shadow-lg transition-shadow">
+          <p className="text-2xl md:text-3xl font-bold leading-snug max-w-3xl text-blue-900 dark:text-blue-50">
             {t("landing.problem")}
           </p>
         </div>
@@ -162,20 +162,20 @@ export default function LandingPage() {
       <hr className="max-w-5xl mx-auto border-border/60" />
 
       <section className="max-w-5xl mx-auto px-6 py-20">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground mb-12">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary mb-12">
           {t("landing.howItWorksTitle")}
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {Array.isArray(steps) &&
             steps.map((s) => (
-              <div key={s.num}>
-                <div className="font-mono text-xs text-muted-foreground mb-3">
-                  {s.num}
+              <div key={s.num} className="group p-6 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-md hover:bg-blue-50/30 transition-all">
+                <div className="font-mono text-sm font-bold text-blue-600 mb-3 group-hover:text-blue-700">
+                  STEP {s.num}
                 </div>
-                <h3 className="text-lg font-semibold mb-2 tracking-tight">
+                <h3 className="text-lg font-bold mb-2 tracking-tight text-foreground">
                   {s.title}
                 </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
+                <p className="text-sm text-foreground/70 leading-relaxed">
                   {s.desc}
                 </p>
               </div>
@@ -186,24 +186,24 @@ export default function LandingPage() {
       <hr className="max-w-5xl mx-auto border-border/60" />
 
       <section className="max-w-5xl mx-auto px-6 py-20">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted-foreground mb-8">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary mb-10">
           {t("landing.platformsTitle")}
         </h2>
-        <div className="flex flex-wrap gap-x-10 gap-y-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {PLATFORMS.map((p) => (
             <div
               key={p.name}
-              className="flex items-center gap-3"
+              className="flex flex-col items-center gap-4 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all hover:shadow-md"
             >
-              <span className="text-xl md:text-2xl font-medium text-foreground/70 tracking-tight">
-                {p.name}
-              </span>
               <img 
                 src={p.icon} 
                 alt={`${p.name} logo`} 
-                className="h-8 md:h-10 w-auto object-contain"
+                className="h-10 md:h-12 w-auto object-contain"
                 loading="lazy"
               />
+              <span className="text-sm md:text-base font-semibold text-foreground text-center">
+                {p.name}
+              </span>
             </div>
           ))}
         </div>
@@ -212,19 +212,21 @@ export default function LandingPage() {
       <hr className="max-w-5xl mx-auto border-border/60" />
 
       <section className="max-w-5xl mx-auto px-6 py-20">
-        <h2 className="text-2xl md:text-3xl font-semibold tracking-tight leading-snug max-w-3xl">
-          {t("landing.closingTitle")}
-        </h2>
-        <p className="mt-5 text-muted-foreground max-w-2xl leading-relaxed">
-          {t("landing.closingBody")}
-        </p>
-        <div className="mt-10">
-          <Link href={ctaHref}>
-            <Button size="lg" className="h-11 px-6">
-              {ctaLabel}
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
-          </Link>
+        <div className="bg-gradient-to-r from-blue-50 to-white border-2 border-blue-200 rounded-lg p-8 shadow-md hover:shadow-lg transition-shadow">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight leading-snug max-w-3xl text-foreground">
+            {t("landing.closingTitle")}
+          </h2>
+          <p className="mt-5 text-foreground/70 max-w-2xl leading-relaxed">
+            {t("landing.closingBody")}
+          </p>
+          <div className="mt-8">
+            <Link href={ctaHref}>
+              <Button size="lg" className="h-11 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-shadow">
+                {ctaLabel}
+                <ArrowRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 

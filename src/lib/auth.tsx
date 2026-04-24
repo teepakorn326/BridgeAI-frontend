@@ -130,6 +130,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       credentials: "include",
     }).catch(() => {});
     setUser(null);
+    // Full reload wipes any in-memory component state (chat messages,
+    // generated summaries, dashboard list) that would otherwise briefly
+    // show to the next user who signs in on the same tab.
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
   }, []);
 
   return (

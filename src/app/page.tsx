@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -101,12 +101,21 @@ export default function LandingPage() {
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
-          <Link href="/link-extension">
+          <a href="/bridgeai-extension.zip" download>
             <Button size="lg" variant="outline" className="h-11 px-6">
+              <Download className="w-4 h-4 mr-1" />
+              Download extension for Chrome
+            </Button>
+          </a>
+          <Link href="/link-extension">
+            <Button size="lg" variant="ghost" className="h-11 px-6">
               {t("landing.ctaSecondary")}
             </Button>
           </Link>
         </div>
+        <p className="mt-4 text-xs text-muted-foreground max-w-xl leading-relaxed">
+          After downloading: unzip, open <code className="font-mono text-foreground/80">chrome://extensions</code>, enable Developer mode (top-right), then click <span className="text-foreground/80">Load unpacked</span> and select the unzipped folder.
+        </p>
       </section>
 
       <hr className="max-w-5xl mx-auto border-border/60" />

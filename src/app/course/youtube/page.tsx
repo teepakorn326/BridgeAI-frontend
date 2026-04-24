@@ -7,6 +7,19 @@ import CoursePlayer from "@/components/CoursePlayer";
 import { ProcessResponse } from "@/types";
 import { API_BASE } from "@/lib/api";
 
+type Stage = "fetching" | "translating" | "finalising";
+type RawSegment = { start: number; end: number; text: string };
+type TranslatedSegment = RawSegment & { translation: string };
+
+const BATCH_SIZE = 50;
+
+// Stage weights — should sum to 100. Progress flows linearly within each stage.
+const STAGE_WEIGHTS: Record<Stage, [number, number]> = {
+  fetching: [0, 15],
+  translating: [15, 90],
+  finalising: [90, 100],
+};
+
 function YoutubeCourseInner() {
   const router = useRouter();
   const params = useSearchParams();
@@ -16,6 +29,7 @@ function YoutubeCourseInner() {
   const [data, setData] = useState<ProcessResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState<Stage>("fetching");
 
   useEffect(() => {
     if (!v || !lang) {
@@ -23,37 +37,108 @@ function YoutubeCourseInner() {
       return;
     }
 
-    setProgress(3);
-    const tick = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 95) return p;
-        const remaining = 95 - p;
-        return Math.min(95, p + Math.max(0.4, remaining * 0.04));
-      });
-    }, 400);
+    let cancelled = false;
+
+    const setStageProgress = (s: Stage, fraction: number) => {
+      if (cancelled) return;
+      setStage(s);
+      const [start, end] = STAGE_WEIGHTS[s];
+      const clamped = Math.max(0, Math.min(1, fraction));
+      setProgress(start + (end - start) * clamped);
+    };
 
     const videoUrl = `https://www.youtube.com/watch?v=${v}`;
-    fetch(`${API_BASE}/api/process-course`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ video_url: videoUrl, target_lang: lang }),
-    })
-      .then(async (r) => {
-        if (!r.ok) {
-          const err = await r.json().catch(() => ({}));
-          throw new Error(err.error || "Failed to load course");
-        }
-        return r.json();
-      })
-      .then((d: ProcessResponse) => {
-        setProgress(100);
-        setData(d);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => clearInterval(tick));
 
-    return () => clearInterval(tick);
+    (async () => {
+      try {
+        // ── Stage 1: fetch transcript (or cache hit) ──────────────────────
+        setStageProgress("fetching", 0);
+        const fetchRes = await fetch(`${API_BASE}/api/fetch-transcript`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ video_url: videoUrl, target_lang: lang }),
+        });
+        if (!fetchRes.ok) {
+          const err = await fetchRes.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to fetch transcript");
+        }
+        const fetchData = await fetchRes.json();
+
+        if (fetchData.cached) {
+          if (cancelled) return;
+          setProgress(100);
+          setData(fetchData.cached as ProcessResponse);
+          return;
+        }
+
+        setStageProgress("fetching", 1);
+
+        // ── Stage 2: batch-translate ──────────────────────────────────────
+        const segments: RawSegment[] = fetchData.segments || [];
+        if (segments.length === 0) {
+          throw new Error("Transcript is empty");
+        }
+
+        const totalBatches = Math.ceil(segments.length / BATCH_SIZE);
+        const translated: TranslatedSegment[] = [];
+        setStageProgress("translating", 0);
+
+        for (let i = 0; i < totalBatches; i++) {
+          if (cancelled) return;
+          const batch = segments.slice(i * BATCH_SIZE, (i + 1) * BATCH_SIZE);
+          const res = await fetch(`${API_BASE}/api/translate-segments`, {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ segments: batch, target_lang: lang }),
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || "Translation failed");
+          }
+          const { segments: out } = await res.json();
+          translated.push(...(out as TranslatedSegment[]));
+          setStageProgress("translating", (i + 1) / totalBatches);
+        }
+
+        // ── Stage 3: save + receive final ProcessResponse ─────────────────
+        setStageProgress("finalising", 0);
+        const subtitles = translated.map((t) => ({
+          start_seconds: t.start,
+          end_seconds: t.end,
+          text_en: t.text,
+          text_translated: t.translation,
+        }));
+        const ingestRes = await fetch(`${API_BASE}/api/ingest-course`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: "youtube",
+            source_url: fetchData.video_url,
+            title: fetchData.title,
+            target_lang: lang,
+            subtitles,
+          }),
+        });
+        if (!ingestRes.ok) {
+          const err = await ingestRes.json().catch(() => ({}));
+          throw new Error(err.error || "Failed to save course");
+        }
+        const final: ProcessResponse = await ingestRes.json();
+        if (cancelled) return;
+        setProgress(100);
+        setData(final);
+      } catch (err) {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "Failed to load course");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [v, lang]);
 
   if (error) {
@@ -77,13 +162,11 @@ function YoutubeCourseInner() {
   if (!data) {
     const pct = Math.floor(progress);
     const label =
-      pct < 30
+      stage === "fetching"
         ? "Fetching transcript"
-        : pct < 70
+        : stage === "translating"
         ? "Translating segments"
-        : pct < 100
-        ? "Finalising subtitles"
-        : "Ready";
+        : "Finalising subtitles";
     return (
       <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         <div className="w-full max-w-sm px-6 space-y-4">

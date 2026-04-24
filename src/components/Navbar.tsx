@@ -42,7 +42,7 @@ export function Navbar() {
           {loading ? null : user ? (
             <div className="flex items-center gap-2">
               <span className="hidden sm:inline text-sm text-muted-foreground mr-2">
-                {user.email}
+                {user.first_name || user.email.split("@")[0]}
               </span>
               <Button
                 variant="outline"

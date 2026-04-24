@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, Suspense, useState } from "react";
+import React, { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -15,11 +15,25 @@ function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/";
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace(next);
+    }
+  }, [authLoading, user, next, router]);
+
+  if (authLoading || user) {
+    return (
+      <AuthShell title="Welcome back" subtitle="Redirecting…">
+        <div />
+      </AuthShell>
+    );
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();

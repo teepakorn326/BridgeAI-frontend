@@ -6,34 +6,114 @@
     "tagline": "Creator Portal"
   },
   "landing": {
-    "eyebrow": "Bilingual subtitles for online lectures",
+    "eyebrow": "Built for international students learning in Australia",
     "title": "Learn from any lecture — in the language you think in.",
-    "subtitle": "BridgeAI adds synced subtitles and study materials to Echo360, Coursera, Udemy, and YouTube. Because English shouldn't decide who gets to learn.",
+    "subtitle": "Bilingual subtitles and AI study tools for Echo360, Coursera, Udemy, and YouTube. Built for international students in Australia who deserve to understand every lecture the first time it's said.",
     "ctaPrimary": "Get started",
     "ctaLoggedIn": "Go to my learning",
     "ctaSecondary": "Install the extension",
-    "problem": "Most of the best coursework on the internet is in English. For millions of learners across Southeast Asia, that is a wall — not a ladder.",
+    "problem": "International students in Australian lecture halls — and skilled migrants chasing certs after work — pay full price to learn in a second language. You shouldn't have to decode English before you can even start learning the content.",
+    "trustLine": "Free during the hackathon · No credit card · Works in Chrome",
+    "differentiatorsTitle": "Why our subtitles aren't like the others",
+    "differentiatorsSubtitle": "You've tried auto-captions and Google Translate in a side tab. Here's why BridgeAI actually holds up in a real lecture.",
+    "differentiators": [
+      {
+        "title": "Both languages, side-by-side",
+        "desc": "Most tools replace English with a translation. We show both lines together — so you learn the English term while you understand the meaning."
+      },
+      {
+        "title": "Whole sentences, lecture context",
+        "desc": "Auto-captions translate word-by-word and butcher jargon. We use Claude Sonnet on full sentences — so \"recurrence relation\" reads the way your tutor would say it."
+      },
+      {
+        "title": "Translate once, study many times",
+        "desc": "Your summary, quiz, vocab pool, and chatbot all read from the same translation. No contradictions across tools."
+      },
+      {
+        "title": "Works inside Echo360, Coursera, Udemy",
+        "desc": "Browser translation breaks on protected players. The extension captures captions from inside the player itself."
+      }
+    ],
     "howItWorksTitle": "How it works",
-    "steps": [
+    "howItWorksIntro": "Two paths in. Same study tools at the end. Pick the one that matches your lecture source.",
+    "tracksTitle": "Two ways to bring a lecture in",
+    "youtubeTrack": {
+      "badge": "Path A · YouTube",
+      "title": "Paste a link. That's it.",
+      "subtitle": "Public YouTube lectures work end-to-end on the website — no install needed.",
+      "steps": [
+        {
+          "num": "01",
+          "title": "Open your home page",
+          "desc": "Sign in and go to your dashboard. Click \"Add lecture\" to open the form."
+        },
+        {
+          "num": "02",
+          "title": "Paste the YouTube URL & pick a language",
+          "desc": "Drop in any youtube.com or youtu.be link. Choose Thai, Chinese, Japanese, Korean, Vietnamese, Indonesian, Spanish, and more."
+        },
+        {
+          "num": "03",
+          "title": "Wait while we translate",
+          "desc": "We pull the transcript, translate it line-by-line, and build your study materials. Longer videos take longer — feel free to grab coffee."
+        }
+      ]
+    },
+    "extensionTrack": {
+      "badge": "Path B · Echo360, Coursera & Udemy",
+      "title": "Install the extension once. Capture any lecture after.",
+      "subtitle": "These platforms sit behind logins or DRM, so we capture the transcript right inside your browser via the BridgeAI Chrome extension.",
+      "steps": [
+        {
+          "num": "01",
+          "title": "Download the Chrome extension",
+          "desc": "Use the \"Download extension\" button at the top of this page. Unzip it, then in Chrome go to chrome://extensions, turn on Developer Mode, and click \"Load unpacked\"."
+        },
+        {
+          "num": "02",
+          "title": "Sign in & link the extension to your account",
+          "desc": "Create your BridgeAI account first, then open the Link Extension page. One click connects the extension so saved lectures land in your dashboard."
+        },
+        {
+          "num": "03",
+          "title": "Open a lecture & turn on the transcript",
+          "desc": "Go to your Echo360, Coursera, or Udemy course. Turn on the platform's built-in transcript or captions panel — the extension reads from it."
+        },
+        {
+          "num": "04",
+          "title": "Choose your language & click Translate",
+          "desc": "Open the BridgeAI extension popup, pick your study language, and hit Translate. Generation time scales with video length — a 60-minute lecture takes longer than a 10-minute one."
+        },
+        {
+          "num": "05",
+          "title": "Save to dashboard, then head back home",
+          "desc": "Want the summary, quiz, vocabulary list, and chatbot kept for later? Click \"Save to dashboard\" in the extension, then return to your home page — the lecture is waiting in your library."
+        }
+      ]
+    },
+    "dashboardTitle": "What you unlock on your dashboard",
+    "dashboardSubtitle": "Every saved lecture gets the same toolkit, in the language you chose.",
+    "dashboardFeatures": [
       {
-        "num": "01",
-        "title": "Open a lecture",
-        "desc": "Drop into Echo360, Coursera, Udemy, or YouTube. The extension finds the video player and its transcript."
+        "title": "Bilingual summary",
+        "desc": "A clear, structured recap of the lecture written in your language — perfect for review before an exam."
       },
       {
-        "num": "02",
-        "title": "Pick a language",
-        "desc": "Thai, Chinese, Vietnamese, Indonesian, Japanese, Korean, Spanish, and more. Translations happen in the background."
+        "title": "Auto-generated quiz",
+        "desc": "Multiple-choice questions pulled straight from the lecture so you can check what actually stuck."
       },
       {
-        "num": "03",
-        "title": "Study alongside",
-        "desc": "Bilingual subtitles stay in sync with playback. Generate a summary, quiz, or vocabulary list whenever you need one."
+        "title": "Vocabulary pool",
+        "desc": "Key terms and jargon from the lecture, defined in your language, ready to drill."
+      },
+      {
+        "title": "Lecture chatbot",
+        "desc": "Ask anything about the lecture in your language. Answers come back with timestamp citations so you can jump straight to the moment in the video."
       }
     ],
     "platformsTitle": "Supported platforms",
-    "closingTitle": "English shouldn't be the gatekeeper.",
-    "closingBody": "BridgeAI is a small project with a narrow job: keep the subtitles honest, keep the study material useful, and get out of the way.",
+    "closingTitle": "English shouldn't decide whether you pass.",
+    "closingBody": "International student, skilled migrant, late-night cert chaser — wherever you're learning in Australia, BridgeAI keeps the subtitles honest and gets out of the way.",
     "footerLeft": "BridgeAI",
     "footerRight": "A student project for the WSTI Hackathon, 2026."
   },

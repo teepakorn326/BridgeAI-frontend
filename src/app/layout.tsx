@@ -73,7 +73,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "BridgeAI — Bilingual lecture subtitles for SEA learners",
+    title: "BridgeAI — Bilingual lecture subtitles for international students in Australia",
     description:
       "Synced bilingual subtitles, summaries, quizzes, and vocabulary for Echo360, Coursera, Udemy, and YouTube.",
     images: ["/logo.png"],

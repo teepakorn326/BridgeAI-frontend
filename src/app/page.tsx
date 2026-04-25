@@ -2,7 +2,21 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Download, X } from "lucide-react";
+import {
+  ArrowRight,
+  Download,
+  X,
+  PlayCircle,
+  Puzzle,
+  FileText,
+  HelpCircle,
+  BookOpen,
+  MessageCircle,
+  Languages,
+  Sparkles,
+  Layers,
+  Lock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -14,6 +28,9 @@ const PLATFORMS = [
   { name: "YouTube", icon: "/YouTube.png" },
 ];
 
+const DASHBOARD_ICONS = [FileText, HelpCircle, BookOpen, MessageCircle];
+const DIFF_ICONS = [Languages, Sparkles, Layers, Lock];
+
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
   "https://bridgeai.app";
@@ -24,10 +41,30 @@ interface Step {
   desc: string;
 }
 
+interface Track {
+  badge: string;
+  title: string;
+  subtitle: string;
+  steps: Step[];
+}
+
+interface DashboardFeature {
+  title: string;
+  desc: string;
+}
+
+interface Differentiator {
+  title: string;
+  desc: string;
+}
+
 export default function LandingPage() {
   const { t } = useT();
   const { user } = useAuth();
-  const steps = t<Step[]>("landing.steps");
+  const youtubeTrack = t<Track>("landing.youtubeTrack");
+  const extensionTrack = t<Track>("landing.extensionTrack");
+  const dashboardFeatures = t<DashboardFeature[]>("landing.dashboardFeatures");
+  const differentiators = t<Differentiator[]>("landing.differentiators");
   const ctaHref = user ? "/home" : "/register";
   const ctaLabel = user ? t("landing.ctaLoggedIn") : t("landing.ctaPrimary");
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -74,7 +111,10 @@ export default function LandingPage() {
       {
         "@type": "HowTo",
         name: t<string>("landing.howItWorksTitle"),
-        step: (Array.isArray(steps) ? steps : []).map((s, i) => ({
+        step: [
+          ...(Array.isArray(youtubeTrack?.steps) ? youtubeTrack.steps : []),
+          ...(Array.isArray(extensionTrack?.steps) ? extensionTrack.steps : []),
+        ].map((s, i) => ({
           "@type": "HowToStep",
           position: i + 1,
           name: s.title,
@@ -115,8 +155,8 @@ export default function LandingPage() {
                   Download extension for Chrome
                 </Button>
               </a>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="outline"
                 className="h-11 px-6 border-2 hover:bg-blue-50"
                 onClick={() => setShowVideoModal(true)}
@@ -124,6 +164,9 @@ export default function LandingPage() {
                 How to install extension?
               </Button>
             </div>
+            <p className="mt-5 text-xs font-medium tracking-wide text-foreground/55">
+              {t("landing.trustLine")}
+            </p>
           </div>
           <div className="rounded-xl overflow-hidden shadow-xl border border-border/80 hidden md:block hover:shadow-2xl transition-shadow">
             <img 
@@ -146,27 +189,174 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <hr className="max-w-5xl mx-auto border-border/60" />
+      {/* Differentiators — why our subtitles aren't like the others */}
+      <section className="bg-gradient-to-b from-slate-50 to-white border-y border-border/60">
+        <div className="max-w-6xl mx-auto px-6 py-20">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary mb-4">
+            {t("landing.differentiatorsTitle")}
+          </h2>
+          <p className="text-lg text-foreground/70 max-w-3xl leading-relaxed mb-12">
+            {t("landing.differentiatorsSubtitle")}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {Array.isArray(differentiators) &&
+              differentiators.map((d, i) => {
+                const Icon = DIFF_ICONS[i] || Sparkles;
+                return (
+                  <div
+                    key={d.title}
+                    className="group relative bg-white rounded-xl border-2 border-gray-200 p-7 hover:border-blue-400 hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
+                        <Icon className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold tracking-tight text-foreground mb-2 leading-snug">
+                          {d.title}
+                        </h3>
+                        <p className="text-sm text-foreground/70 leading-relaxed">
+                          {d.desc}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      </section>
 
-      <section className="max-w-5xl mx-auto px-6 py-20">
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary mb-12">
+      <section className="max-w-6xl mx-auto px-6 py-20">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary mb-4">
           {t("landing.howItWorksTitle")}
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {Array.isArray(steps) &&
-            steps.map((s) => (
-              <div key={s.num} className="group p-6 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-md hover:bg-blue-50/30 transition-all">
-                <div className="font-mono text-sm font-bold text-blue-600 mb-3 group-hover:text-blue-700">
-                  STEP {s.num}
-                </div>
-                <h3 className="text-lg font-bold mb-2 tracking-tight text-foreground">
-                  {s.title}
-                </h3>
-                <p className="text-sm text-foreground/70 leading-relaxed">
-                  {s.desc}
-                </p>
+        <p className="text-lg text-foreground/70 max-w-2xl leading-relaxed mb-12">
+          {t("landing.howItWorksIntro")}
+        </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* YouTube track */}
+          <div className="rounded-xl border-2 border-red-200 bg-gradient-to-br from-red-50/60 to-white p-6 md:p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                <PlayCircle className="w-5 h-5 text-red-600" />
               </div>
-            ))}
+              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-red-700">
+                {youtubeTrack?.badge}
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold tracking-tight text-foreground mb-2">
+              {youtubeTrack?.title}
+            </h3>
+            <p className="text-sm text-foreground/70 leading-relaxed mb-6">
+              {youtubeTrack?.subtitle}
+            </p>
+            <ol className="space-y-4">
+              {Array.isArray(youtubeTrack?.steps) &&
+                youtubeTrack.steps.map((s) => (
+                  <li key={s.num} className="flex gap-4">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-red-600 text-white font-mono text-sm font-bold flex items-center justify-center">
+                      {s.num}
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h4 className="font-semibold text-foreground mb-1">
+                        {s.title}
+                      </h4>
+                      <p className="text-sm text-foreground/70 leading-relaxed">
+                        {s.desc}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+            </ol>
+          </div>
+
+          {/* Extension track */}
+          <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50/60 to-white p-6 md:p-8 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                <Puzzle className="w-5 h-5 text-blue-600" />
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-700">
+                {extensionTrack?.badge}
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold tracking-tight text-foreground mb-2">
+              {extensionTrack?.title}
+            </h3>
+            <p className="text-sm text-foreground/70 leading-relaxed mb-6">
+              {extensionTrack?.subtitle}
+            </p>
+            <ol className="space-y-4">
+              {Array.isArray(extensionTrack?.steps) &&
+                extensionTrack.steps.map((s) => (
+                  <li key={s.num} className="flex gap-4">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-600 text-white font-mono text-sm font-bold flex items-center justify-center">
+                      {s.num}
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h4 className="font-semibold text-foreground mb-1">
+                        {s.title}
+                      </h4>
+                      <p className="text-sm text-foreground/70 leading-relaxed">
+                        {s.desc}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+            </ol>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a href="/bridgeai-extension.zip" download>
+                <Button size="sm" className="h-9 bg-blue-600 hover:bg-blue-700">
+                  <Download className="w-4 h-4 mr-1" />
+                  Download extension
+                </Button>
+              </a>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 border-2 hover:bg-blue-50"
+                onClick={() => setShowVideoModal(true)}
+              >
+                Watch install video
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <hr className="max-w-5xl mx-auto border-border/60" />
+
+      {/* Dashboard features — what users get at the end */}
+      <section className="max-w-6xl mx-auto px-6 py-20">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.22em] text-primary mb-4">
+          {t("landing.dashboardTitle")}
+        </h2>
+        <p className="text-lg text-foreground/70 max-w-2xl leading-relaxed mb-12">
+          {t("landing.dashboardSubtitle")}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.isArray(dashboardFeatures) &&
+            dashboardFeatures.map((f, i) => {
+              const Icon = DASHBOARD_ICONS[i] || FileText;
+              return (
+                <div
+                  key={f.title}
+                  className="p-6 rounded-lg border-2 border-gray-200 hover:border-blue-300 hover:shadow-md hover:bg-blue-50/30 transition-all"
+                >
+                  <div className="w-11 h-11 rounded-lg bg-blue-100 flex items-center justify-center mb-4">
+                    <Icon className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-2 tracking-tight text-foreground">
+                    {f.title}
+                  </h3>
+                  <p className="text-sm text-foreground/70 leading-relaxed">
+                    {f.desc}
+                  </p>
+                </div>
+              );
+            })}
         </div>
       </section>
 

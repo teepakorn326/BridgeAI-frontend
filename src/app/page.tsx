@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { ArrowRight, Download, X } from "lucide-react";
+import { ArrowRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
@@ -30,7 +30,6 @@ export default function LandingPage() {
   const steps = t<Step[]>("landing.steps");
   const ctaHref = user ? "/home" : "/register";
   const ctaLabel = user ? t("landing.ctaLoggedIn") : t("landing.ctaPrimary");
-  const [showVideoModal, setShowVideoModal] = useState(false);
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -115,15 +114,15 @@ export default function LandingPage() {
                   Download extension for Chrome
                 </Button>
               </a>
-              <Button 
-                size="lg" 
-                variant="outline"
-                className="h-11 px-6 border-2 hover:bg-blue-50"
-                onClick={() => setShowVideoModal(true)}
-              >
-                How to install extension?
-              </Button>
+              <Link href="/link-extension">
+                <Button size="lg" variant="ghost" className="h-11 px-6 hover:bg-blue-50 text-foreground">
+                  {t("landing.ctaSecondary")}
+                </Button>
+              </Link>
             </div>
+            <p className="mt-4 text-xs text-foreground/60 leading-relaxed">
+              After downloading: unzip, open <code className="font-mono text-foreground/90 bg-gray-100 px-2 py-1 rounded">chrome://extensions</code>, enable Developer mode (top-right), then click <span className="text-foreground/90 font-medium">Load unpacked</span> and select the unzipped folder.
+            </p>
           </div>
           <div className="rounded-xl overflow-hidden shadow-xl border border-border/80 hidden md:block hover:shadow-2xl transition-shadow">
             <img 
@@ -135,6 +134,22 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <section className="w-full bg-gradient-to-b from-white via-blue-50/30 to-white px-6 py-2">
+        <div className="max-w-6xl mx-auto rounded-xl overflow-hidden border-2 border-blue-200/50 shadow-xl hover:shadow-2xl transition-shadow">
+          <video 
+            width="100%" 
+            height="auto" 
+            controls 
+            className="w-full h-auto bg-black"
+          >
+            <source src="/extension.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </section>
+
+      <hr className="max-w-5xl mx-auto border-border/60" />
 
       <section className="max-w-5xl mx-auto px-6 py-20">
         <div className="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-50 dark:from-blue-950/40 dark:via-blue-950/40 dark:to-blue-950/40 border-l-4 border-blue-600 px-8 py-10 rounded-r-lg shadow-md hover:shadow-lg transition-shadow">
@@ -214,35 +229,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* Installation Video Modal */}
-      {showVideoModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg overflow-hidden max-w-4xl w-full max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-foreground">How to Install Extension</h2>
-              <button 
-                onClick={() => setShowVideoModal(false)}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
-              >
-                <X className="w-6 h-6 text-foreground" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-auto bg-black flex items-center justify-center">
-              <video 
-                width="100%" 
-                height="auto" 
-                controls 
-                autoPlay
-                className="max-h-full w-full object-contain"
-              >
-                <source src="/extension.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-          </div>
-        </div>
-      )}
 
       <footer className="border-t border-border/60">
         <div className="max-w-5xl mx-auto px-6 py-8 flex items-center justify-between text-xs text-muted-foreground">

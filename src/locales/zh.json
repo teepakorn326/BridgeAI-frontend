@@ -14,6 +14,10 @@
     "ctaSecondary": "安装浏览器扩展",
     "problem": "在澳洲读书的国际学生交着全额学费，却要在以全速英语进行的讲课中先翻译、再学习内容。问题不止在大学：在澳洲的技术移民、转行人士、自学者也想通过 Coursera 与 Udemy 提升自己，但最好的课程都被他们仍在掌握的英文挡在门外。你不该在「自己听得懂的语言」和「自己需要的证书」之间二选一。",
     "trustLine": "黑客松期间免费 · 无需信用卡 · 在 Chrome 中即用",
+    "installVideoBtn": "观看安装教程",
+    "installVideoTitle": "如何安装扩展",
+    "linkVideoBtn": "观看关联教程",
+    "linkVideoTitle": "如何将扩展关联到你的账户",
     "differentiatorsTitle": "为什么我们的字幕和其他工具不一样",
     "differentiatorsSubtitle": "你已经试过浏览器右键翻译、YouTube 自动字幕、把 Google 翻译开在旁边的标签页 — 看看 BridgeAI 为什么是另一种思路，也为什么它在真实课程里真的能用。",
     "differentiators": [

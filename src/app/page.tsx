@@ -67,7 +67,7 @@ export default function LandingPage() {
   const differentiators = t<Differentiator[]>("landing.differentiators");
   const ctaHref = user ? "/home" : "/register";
   const ctaLabel = user ? t("landing.ctaLoggedIn") : t("landing.ctaPrimary");
-  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [videoModal, setVideoModal] = useState<null | "install" | "link">(null);
 
   const structuredData = {
     "@context": "https://schema.org",
@@ -159,7 +159,7 @@ export default function LandingPage() {
                 size="lg"
                 variant="outline"
                 className="h-11 px-6 border-2 hover:bg-blue-50"
-                onClick={() => setShowVideoModal(true)}
+                onClick={() => setVideoModal("install")}
               >
                 How to install extension?
               </Button>
@@ -317,9 +317,17 @@ export default function LandingPage() {
                 size="sm"
                 variant="outline"
                 className="h-9 border-2 hover:bg-blue-50"
-                onClick={() => setShowVideoModal(true)}
+                onClick={() => setVideoModal("install")}
               >
-                Watch install video
+                {t("landing.installVideoBtn")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 border-2 hover:bg-blue-50"
+                onClick={() => setVideoModal("link")}
+              >
+                {t("landing.linkVideoBtn")}
               </Button>
             </div>
           </div>
@@ -407,28 +415,36 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Installation Video Modal */}
-      {showVideoModal && (
+      {/* Tutorial video modal — install or link */}
+      {videoModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg overflow-hidden max-w-4xl w-full max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-foreground">How to Install Extension</h2>
-              <button 
-                onClick={() => setShowVideoModal(false)}
+              <h2 className="text-xl font-bold text-foreground">
+                {videoModal === "install"
+                  ? t("landing.installVideoTitle")
+                  : t("landing.linkVideoTitle")}
+              </h2>
+              <button
+                onClick={() => setVideoModal(null)}
                 className="p-1 hover:bg-gray-100 rounded transition-colors"
               >
                 <X className="w-6 h-6 text-foreground" />
               </button>
             </div>
             <div className="flex-1 overflow-auto bg-black flex items-center justify-center">
-              <video 
-                width="100%" 
-                height="auto" 
-                controls 
+              <video
+                key={videoModal}
+                width="100%"
+                height="auto"
+                controls
                 autoPlay
                 className="max-h-full w-full object-contain"
               >
-                <source src="/extension.mp4" type="video/mp4" />
+                <source
+                  src={videoModal === "install" ? "/extension.mp4" : "/link-extension.mp4"}
+                  type="video/mp4"
+                />
                 Your browser does not support the video tag.
               </video>
             </div>

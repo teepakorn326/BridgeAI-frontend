@@ -14,6 +14,10 @@
     "ctaSecondary": "Install the extension",
     "problem": "International students in Australian lecture halls — and skilled migrants chasing certs after work — pay full price to learn in a second language. You shouldn't have to decode English before you can even start learning the content.",
     "trustLine": "Free during the hackathon · No credit card · Works in Chrome",
+    "installVideoBtn": "Watch install video",
+    "installVideoTitle": "How to install the extension",
+    "linkVideoBtn": "Watch how to link",
+    "linkVideoTitle": "How to link the extension to your account",
     "differentiatorsTitle": "Why our subtitles aren't like the others",
     "differentiatorsSubtitle": "You've tried auto-captions and Google Translate in a side tab. Here's why BridgeAI actually holds up in a real lecture.",
     "differentiators": [

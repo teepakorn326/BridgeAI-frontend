@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-export type Platform = "youtube" | "udemy" | "coursera" | "echo360" | "other";
+export type Platform = "youtube" | "udemy" | "coursera" | "echo360" | "audio" | "document" | "other";
 
 const PLATFORM_META: Record<
   Platform,
@@ -30,6 +30,16 @@ const PLATFORM_META: Record<
     gradient: "from-emerald-500 to-teal-700",
     initial: "E360",
   },
+  audio: {
+    label: "Audio",
+    gradient: "from-amber-500 to-yellow-600",
+    initial: "AUD",
+  },
+  document: {
+    label: "Document",
+    gradient: "from-orange-500 to-amber-600",
+    initial: "DOC",
+  },
   other: {
     label: "Video",
     gradient: "from-slate-500 to-slate-700",
@@ -38,10 +48,15 @@ const PLATFORM_META: Record<
 };
 
 export function detectPlatform(url: string): Platform {
+  if (url.startsWith("doc://")) return "document";
+  if (url.startsWith("audio://")) return "audio";
   if (/youtube\.com|youtu\.be/i.test(url)) return "youtube";
   if (/udemy\.com/i.test(url)) return "udemy";
   if (/coursera\.org/i.test(url)) return "coursera";
   if (/echo360\./i.test(url)) return "echo360";
+  // Legacy pdf:// uploads detect as "other" — they still open via the
+  // /course/document page (see openCourse routing in app/home/page.tsx),
+  // they just lose their specific platform badge.
   return "other";
 }
 

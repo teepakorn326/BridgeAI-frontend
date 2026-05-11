@@ -9,18 +9,20 @@ import {
   MessageCircle,
   Loader2,
   Send,
-  ExternalLink,
   CheckCircle2,
   XCircle,
-  ListOrdered,
-  RefreshCw,
+  X,
   Layers,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { ProcessResponse, LectureLesson } from "@/types";
+import {
+  DocumentResponse,
+  DocumentChatCitation,
+  DocumentLesson,
+} from "@/types";
 import { API_BASE } from "@/lib/api";
 
 import { Button } from "@/components/ui/button";
@@ -28,8 +30,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface LectureStudyProps {
-  data: ProcessResponse;
+interface DocumentReaderProps {
+  data: DocumentResponse;
   onBack: () => void;
 }
 
@@ -46,48 +48,10 @@ interface VocabEntry {
   definition: string;
 }
 
-interface ChatCitation {
-  n: number;
-  start_seconds: number;
-  end_seconds: number;
-  text_en: string;
-}
-
 interface ChatMsg {
   role: "user" | "assistant";
   content: string;
-  citations?: ChatCitation[];
-}
-
-interface Chapter {
-  start_seconds: number;
-  end_seconds: number;
-  title_en: string;
-  title_translated: string;
-}
-
-// Build a deep link back to the source lecture that jumps to a timestamp.
-// YouTube supports `&t=Ns`; Coursera/Udemy/Echo360 don't reliably respect
-// timestamp params, but returning the base URL still takes the user back to
-// the lecture they originally captured.
-function buildTimestampedUrl(sourceUrl: string, seconds: number): string {
-  try {
-    const u = new URL(sourceUrl);
-    const host = u.hostname.toLowerCase();
-    if (host.includes("youtube.com") || host.includes("youtu.be")) {
-      u.searchParams.set("t", `${Math.floor(seconds)}s`);
-      return u.toString();
-    }
-    return sourceUrl;
-  } catch {
-    return sourceUrl;
-  }
-}
-
-function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs.toString().padStart(2, "0")}`;
+  citations?: DocumentChatCitation[];
 }
 
 type TabKey = "summary" | "lesson" | "quiz" | "vocab" | "chat";
@@ -100,17 +64,29 @@ const TABS: { key: TabKey; label: string; icon: React.ComponentType<{ className?
   { key: "chat", label: "Chat", icon: MessageCircle },
 ];
 
-export default function LectureStudy({ data, onBack }: LectureStudyProps) {
+// Active citation popover state — shared by Summary, Lesson, and Chat tabs
+// since the Document tab no longer exists. Clicking a [N] pill anywhere
+// surfaces the cited source block in a small fixed panel at bottom-right.
+interface ActiveCitation {
+  page: number;
+  order: number;
+  textEN: string;
+  textTranslated: string;
+}
+
+export default function DocumentReader({ data, onBack }: DocumentReaderProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("summary");
 
   const [summary, setSummary] = useState<string | null>(null);
-  const [summaryCites, setSummaryCites] = useState<ChatCitation[]>([]);
+  const [summaryCites, setSummaryCites] = useState<DocumentChatCitation[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [lessons, setLessons] = useState<LectureLesson[] | null>(null);
+
+  const [lessons, setLessons] = useState<DocumentLesson[] | null>(null);
   const [lessonsLoading, setLessonsLoading] = useState(false);
   const [openChapter, setOpenChapter] = useState<number>(0);
   const [lessonAnswers, setLessonAnswers] = useState<Record<string, number>>({});
   const [lessonSubmitted, setLessonSubmitted] = useState<Record<number, boolean>>({});
+
   const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
@@ -124,49 +100,43 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
   const [chatLoading, setChatLoading] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
 
-  const [chapters, setChapters] = useState<Chapter[] | null>(null);
-  const [chaptersLoading, setChaptersLoading] = useState(false);
-  const [chaptersError, setChaptersError] = useState<string | null>(null);
+  const [activeCitation, setActiveCitation] = useState<ActiveCitation | null>(null);
 
-  const loadChapters = useCallback(() => {
-    setChaptersLoading(true);
-    setChaptersError(null);
-    fetch(`${API_BASE}/api/chapters`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        video_url: data.video_url,
-        target_lang: data.target_lang,
-      }),
-    })
-      .then(async (r) => {
-        if (!r.ok) {
-          const err = await r.json().catch(() => ({}));
-          throw new Error(err.error || "Failed to load chapters");
-        }
-        return r.json();
-      })
-      .then((r) => setChapters(r.chapters || []))
-      .catch((e) => setChaptersError((e as Error).message))
-      .finally(() => setChaptersLoading(false));
-  }, [data.video_url, data.target_lang]);
+  // Resolve a citation (which has page+order but only EN text) into the
+  // full block including translated text — needed for the popover.
+  const showCitation = useCallback(
+    (cite: DocumentChatCitation) => {
+      const blk = data.blocks.find(
+        (b) => b.page === cite.page && b.order === cite.order
+      );
+      setActiveCitation({
+        page: cite.page,
+        order: cite.order,
+        textEN: cite.text_en,
+        textTranslated: blk?.text_translated || "",
+      });
+    },
+    [data.blocks]
+  );
 
+  // ESC closes the citation popover.
   useEffect(() => {
-    if (chapters === null && !chaptersLoading && !chaptersError) {
-      loadChapters();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!activeCitation) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActiveCitation(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeCitation]);
 
   const fetchMaterial = useCallback(
-    async (kind: "summarize" | "quiz" | "vocab" | "lesson") => {
-      const res = await fetch(`${API_BASE}/api/${kind}`, {
+    async (kind: "summary" | "quiz" | "vocab" | "lesson") => {
+      const res = await fetch(`${API_BASE}/api/document/${kind}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          video_url: data.video_url,
+          document_id: data.document_id,
           target_lang: data.target_lang,
         }),
       });
@@ -176,13 +146,13 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
       }
       return res.json();
     },
-    [data.video_url, data.target_lang]
+    [data.document_id, data.target_lang]
   );
 
   useEffect(() => {
     if (activeTab === "summary" && summary === null && !summaryLoading && !errors.summary) {
       setSummaryLoading(true);
-      fetchMaterial("summarize")
+      fetchMaterial("summary")
         .then((r) => {
           setSummary(r.summary);
           setSummaryCites(r.citations || []);
@@ -227,13 +197,12 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
     setChatInput("");
     setChatLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await fetch(`${API_BASE}/api/document/chat`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          video_id: data.video_id,
-          video_url: data.video_url,
+          document_id: data.document_id,
           target_lang: data.target_lang,
           messages: next.map(({ role, content }) => ({ role, content })),
         }),
@@ -257,12 +226,11 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
     }
   };
 
-  // Walks a React node tree and replaces [N] in any string children with a
-  // seek pill. Arrays and React elements pass through; react-markdown is
-  // already rendering the children via our component overrides.
+  // Replace inline [N] markers with citation pills. On click, surfaces the
+  // cited block in the bottom-right popover.
   const injectCites = (
     node: React.ReactNode,
-    byN: Map<number, ChatCitation>
+    byN: Map<number, DocumentChatCitation>
   ): React.ReactNode => {
     if (typeof node === "string") {
       if (byN.size === 0 || !node.includes("[")) return node;
@@ -273,19 +241,19 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
         if (!m) return <React.Fragment key={i}>{p}</React.Fragment>;
         const cite = byN.get(parseInt(m[1], 10));
         if (!cite) return <React.Fragment key={i}>{p}</React.Fragment>;
+        const label = cite.page > 0 ? `p.${cite.page}` : `#${cite.order + 1}`;
         return (
-          <a
+          <button
             key={i}
-            href={buildTimestampedUrl(data.video_url, cite.start_seconds)}
-            target="_blank"
-            rel="noreferrer"
+            type="button"
+            onClick={() => showCitation(cite)}
             title={cite.text_en}
             className="inline-flex items-center gap-0.5 mx-0.5 px-1.5 py-0.5 rounded-md
                        bg-sky-500/15 border border-sky-500/30 text-sky-700
-                       text-[10px] font-semibold font-mono hover:bg-sky-500/25 no-underline"
+                       text-[10px] font-semibold font-mono hover:bg-sky-500/25"
           >
-            ▶ {formatTime(cite.start_seconds)}
-          </a>
+            📄 {label}
+          </button>
         );
       });
     }
@@ -297,13 +265,15 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
     return node;
   };
 
-  // Render full lecture markdown (summary, lesson chapter summary) with the
-  // same citation pill behavior as chat. Caller supplies the prose wrapper
-  // styles so this works for both small chat bubbles and large summaries.
-  const renderMarkdownWithCites = (content: string, citations: ChatCitation[]) => {
+  // Build a markdown renderer that knows which citation map to apply.
+  // Used for both summary and lesson summaries.
+  const renderMarkdownWithCites = (
+    content: string,
+    citations: DocumentChatCitation[]
+  ) => {
     const byN = new Map(citations.map((c) => [c.n, c]));
     const wrap = (
-      tag: "p" | "li" | "strong" | "em" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "td" | "th"
+      tag: "p" | "li" | "strong" | "em" | "h4" | "h5" | "h6" | "td" | "th" | "h1" | "h2" | "h3"
     ) => {
       const MarkdownNode = ({ children }: { children?: React.ReactNode }) =>
         React.createElement(tag, {}, injectCites(children, byN));
@@ -334,9 +304,7 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
     );
   };
 
-  // Render a chat answer as markdown (the model sometimes uses **bold**, ##
-  // headings, lists) while still turning inline [N] markers into seek pills.
-  const renderAnswer = (content: string, citations?: ChatCitation[]) => {
+  const renderChatAnswer = (content: string, citations?: DocumentChatCitation[]) => {
     const byN = new Map((citations || []).map((c) => [c.n, c]));
     const wrap = (
       tag: "p" | "li" | "strong" | "em" | "h4" | "h5" | "h6" | "td" | "th"
@@ -350,9 +318,7 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
       <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none
                       prose-p:my-1.5 prose-p:leading-relaxed
                       prose-headings:font-semibold prose-headings:tracking-tight
-                      prose-h1:text-sm prose-h1:mt-3 prose-h1:mb-1
-                      prose-h2:text-sm prose-h2:mt-3 prose-h2:mb-1
-                      prose-h3:text-sm prose-h3:mt-2 prose-h3:mb-0.5
+                      prose-h1:text-sm prose-h2:text-sm prose-h3:text-sm
                       prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5
                       prose-strong:text-foreground prose-code:text-[0.85em]">
         <ReactMarkdown
@@ -390,16 +356,6 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
           <Button variant="ghost" size="sm" onClick={onBack}>
             <ChevronLeft className="w-4 h-4" /> Back
           </Button>
-          {data.video_url && !/^(pdf|audio):\/\//.test(data.video_url) && (
-            <a
-              href={data.video_url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs text-sky-600 hover:underline flex items-center gap-1"
-            >
-              Open source <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
         </div>
 
         <div className="mb-6">
@@ -407,83 +363,17 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
             {data.title}
           </h1>
           <div className="flex items-center gap-2 mt-2">
-            {data.source && (
-              <Badge variant="outline" className="text-xs capitalize">
-                {data.source}
-              </Badge>
-            )}
+            <Badge variant="outline" className="text-xs uppercase">
+              {data.source}
+            </Badge>
             <Badge variant="outline" className="text-xs">
               {data.target_lang}
             </Badge>
             <Badge variant="outline" className="text-xs">
-              {data.subtitles.length} segments
+              {data.blocks.length} blocks
             </Badge>
           </div>
         </div>
-
-        {/* AI-generated chapter outline — click to open source at that timestamp */}
-        {(chaptersLoading || (chapters && chapters.length > 0) || chaptersError) && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                <ListOrdered className="w-3.5 h-3.5" />
-                Chapters
-                <Badge variant="outline" className="text-[10px] ml-1 border-sky-500/30 text-sky-700">
-                  AI
-                </Badge>
-              </div>
-              {chaptersError && (
-                <button
-                  onClick={loadChapters}
-                  className="text-xs text-sky-700 hover:underline flex items-center gap-1"
-                >
-                  <RefreshCw className="w-3 h-3" /> Retry
-                </button>
-              )}
-            </div>
-            {chaptersLoading && (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Identifying topical chapters…
-              </div>
-            )}
-            {chaptersError && !chaptersLoading && (
-              <p className="text-xs text-muted-foreground">{chaptersError}</p>
-            )}
-            {chapters && chapters.length > 0 && (
-              <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                {chapters.map((ch, i) => (
-                  <a
-                    key={i}
-                    href={buildTimestampedUrl(data.video_url, ch.start_seconds)}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={ch.title_translated}
-                    className="shrink-0 text-left rounded-lg px-3 py-2 border
-                               bg-secondary/40 border-border hover:border-sky-500/30
-                               hover:bg-secondary/60 no-underline"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono tabular-nums text-muted-foreground">
-                        {formatTime(ch.start_seconds)}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/50">·</span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                    </div>
-                    <div className="text-xs font-medium text-foreground/90 mt-0.5 whitespace-nowrap">
-                      {ch.title_en}
-                    </div>
-                    <div className="text-[11px] text-sky-700 mt-0.5 whitespace-nowrap">
-                      {ch.title_translated}
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         <div className="flex gap-1 border-b border-border mb-6 overflow-x-auto">
           {TABS.map(({ key, label, icon: Icon }) => {
@@ -509,7 +399,7 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
         {activeTab === "summary" && (
           <Card className="bg-card/60 backdrop-blur-sm border border-border">
             <CardHeader>
-              <CardTitle className="text-base">Lecture summary</CardTitle>
+              <CardTitle className="text-base">Document summary</CardTitle>
             </CardHeader>
             <CardContent>
               {summaryLoading && (
@@ -560,7 +450,10 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
                 const isOpen = openChapter === i;
                 const submitted = !!lessonSubmitted[i];
                 return (
-                  <Card key={i} className="bg-card/60 backdrop-blur-sm border border-border">
+                  <Card
+                    key={i}
+                    className="bg-card/60 backdrop-blur-sm border border-border"
+                  >
                     <button
                       type="button"
                       onClick={() => setOpenChapter(isOpen ? -1 : i)}
@@ -568,7 +461,7 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
                     >
                       <div>
                         <div className="text-[10px] font-mono text-muted-foreground mb-0.5">
-                          Chapter {String(i + 1).padStart(2, "0")} · {formatTime(lesson.start_seconds)}–{formatTime(lesson.end_seconds)}
+                          Chapter {String(i + 1).padStart(2, "0")}
                         </div>
                         <div className="text-base font-semibold tracking-tight">
                           {lesson.title_en}
@@ -589,7 +482,7 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
                                         prose-p:leading-relaxed prose-p:my-1.5
                                         prose-strong:text-foreground prose-headings:tracking-tight
                                         prose-h1:text-base prose-h2:text-base prose-h3:text-sm">
-                          {renderMarkdownWithCites(lesson.summary, lesson.summary_citations || [])}
+                          {renderMarkdownWithCites(lesson.summary, lesson.summary_citations)}
                         </div>
 
                         {lesson.quiz && lesson.quiz.length > 0 && (
@@ -823,14 +716,14 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
         {activeTab === "chat" && (
           <Card className="bg-card/60 backdrop-blur-sm border border-border">
             <CardHeader>
-              <CardTitle className="text-base">Ask the lecture</CardTitle>
+              <CardTitle className="text-base">Ask the document</CardTitle>
             </CardHeader>
             <CardContent>
               <ScrollArea className="h-[400px] mb-3" ref={chatScrollRef as unknown as React.RefObject<HTMLDivElement>}>
                 <div className="space-y-3 pr-2">
                   {chatMsgs.length === 0 && (
                     <p className="text-sm text-muted-foreground py-8 text-center">
-                      Ask anything about this lecture. Answers are grounded in the transcript.
+                      Ask anything about this document. Click [N] pills to see the cited block.
                     </p>
                   )}
                   {chatMsgs.map((m, i) => (
@@ -846,7 +739,7 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
                         }`}
                       >
                         {m.role === "assistant" ? (
-                          renderAnswer(m.content, m.citations)
+                          renderChatAnswer(m.content, m.citations)
                         ) : (
                           <div className="whitespace-pre-wrap">{m.content}</div>
                         )}
@@ -874,7 +767,7 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask about the lecture..."
+                  placeholder="Ask about the document..."
                   disabled={chatLoading}
                   className="flex-1 h-10 rounded-md border border-border bg-secondary/50 px-3 text-sm outline-none focus:border-sky-500"
                 />
@@ -890,6 +783,36 @@ export default function LectureStudy({ data, onBack }: LectureStudyProps) {
           </Card>
         )}
       </div>
+
+      {activeCitation && (
+        <div className="fixed bottom-6 right-6 w-[min(420px,calc(100vw-3rem))] z-50 animate-fade-in">
+          <Card className="bg-card border border-sky-500/40 shadow-2xl">
+            <div className="flex items-start justify-between p-3 border-b border-border">
+              <div className="text-xs font-medium text-muted-foreground">
+                Source · {activeCitation.page > 0 ? `page ${activeCitation.page}` : `block #${activeCitation.order + 1}`}
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveCitation(null)}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Close citation"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-3 space-y-2 text-sm leading-relaxed max-h-[40vh] overflow-y-auto">
+              <p className="text-foreground/90 whitespace-pre-wrap">
+                {activeCitation.textEN}
+              </p>
+              {activeCitation.textTranslated && (
+                <p className="text-sky-700 whitespace-pre-wrap border-t border-border/60 pt-2">
+                  {activeCitation.textTranslated}
+                </p>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

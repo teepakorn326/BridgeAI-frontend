@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Loader2, X, ChevronRight } from "lucide-react";
+import { Plus, Search, Loader2, X, ChevronRight, FileText, Mic } from "lucide-react";
 import { API_BASE } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useT } from "@/lib/i18n";
@@ -23,6 +23,7 @@ import {
 } from "@/components/CourseCard";
 
 const LANGUAGES = [
+  { code: "English", label: "English" },
   { code: "Thai", label: "Thai" },
   { code: "Chinese", label: "Chinese (Simplified)" },
   { code: "Japanese", label: "Japanese" },
@@ -37,11 +38,23 @@ const LANGUAGES = [
   { code: "Hindi", label: "Hindi" },
 ];
 
-const PLATFORM_TABS: Platform[] = ["youtube", "coursera", "udemy", "echo360"];
+const PLATFORM_TABS: Platform[] = ["youtube", "coursera", "udemy", "echo360", "document", "audio"];
+const VIDEO_PLATFORM_ROUTES: Platform[] = ["youtube", "coursera", "udemy", "echo360"];
 
-interface CourseSummary {
+// Library row — covers both lecture courses and uploaded documents.
+// Documents are surfaced with video_id=document_id and video_url=source_url
+// (which starts with "doc://"), so detectPlatform routes them correctly.
+interface LibraryItem {
   video_id: string;
   video_url: string;
+  title: string;
+  target_lang: string;
+}
+
+interface DocumentSummaryRow {
+  document_id: string;
+  source_url: string;
+  source: string;
   title: string;
   target_lang: string;
 }
@@ -66,7 +79,7 @@ export default function HomePage() {
   const { user, loading: authLoading } = useAuth();
   const { t } = useT();
 
-  const [courses, setCourses] = useState<CourseSummary[]>([]);
+  const [courses, setCourses] = useState<LibraryItem[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [coursesError, setCoursesError] = useState<string | null>(null);
 
@@ -79,22 +92,55 @@ export default function HomePage() {
   const [search, setSearch] = useState("");
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
 
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login?next=/home");
   }, [authLoading, user, router]);
 
+  // Loads both lectures and documents in parallel, then merges them into a
+  // single library list. Documents map onto the LibraryItem shape using
+  // their document_id + source_url so the existing CourseCard works
+  // unchanged (detectPlatform recognizes "doc://" → "document").
   const loadCourses = useCallback(() => {
     setLoadingCourses(true);
     setCoursesError(null);
-    fetch(`${API_BASE}/api/courses`, { credentials: "include" })
-      .then(async (r) => {
+    Promise.allSettled([
+      fetch(`${API_BASE}/api/courses`, { credentials: "include" }).then(async (r) => {
         if (!r.ok) throw new Error(`Server returned ${r.status}`);
         return r.json();
-      })
-      .then((data) => setCourses(data.courses || []))
-      .catch((err) => {
-        setCourses([]);
-        setCoursesError(err.message || "Could not reach the server");
+      }),
+      fetch(`${API_BASE}/api/documents`, { credentials: "include" }).then(async (r) => {
+        if (!r.ok) throw new Error(`Server returned ${r.status}`);
+        return r.json();
+      }),
+    ])
+      .then(([coursesRes, docsRes]) => {
+        const merged: LibraryItem[] = [];
+        if (coursesRes.status === "fulfilled") {
+          merged.push(...((coursesRes.value.courses || []) as LibraryItem[]));
+        }
+        if (docsRes.status === "fulfilled") {
+          const docs = (docsRes.value.documents || []) as DocumentSummaryRow[];
+          merged.push(
+            ...docs.map((d) => ({
+              video_id: d.document_id,
+              video_url: d.source_url,
+              title: d.title,
+              target_lang: d.target_lang,
+            }))
+          );
+        }
+        setCourses(merged);
+        // Surface error only if BOTH endpoints failed — partial failure
+        // (e.g. documents table not provisioned yet) shouldn't blank the page.
+        if (coursesRes.status === "rejected" && docsRes.status === "rejected") {
+          setCoursesError(
+            (coursesRes.reason as Error)?.message || "Could not reach the server"
+          );
+        }
       })
       .finally(() => setLoadingCourses(false));
   }, []);
@@ -136,9 +182,29 @@ export default function HomePage() {
     return counts;
   }, [courses]);
 
-  const openCourse = (course: CourseSummary) => {
+  const openCourse = (course: LibraryItem) => {
     const platform = detectPlatform(course.video_url);
-    const route = PLATFORM_TABS.includes(platform) ? platform : "youtube";
+
+    // New document pipeline — clean separate route, page-aware reader.
+    if (platform === "document") {
+      router.push(
+        `/document/${encodeURIComponent(course.video_id)}?lang=${encodeURIComponent(course.target_lang)}`
+      );
+      return;
+    }
+
+    // Lecture-pipeline audio uploads + legacy pdf:// uploads (which now
+    // detect as "other") both render in /course/document. URL-prefix check
+    // catches legacy pdf:// without needing it as a Platform type.
+    if (platform === "audio" || course.video_url.startsWith("pdf://")) {
+      router.push(
+        `/course/document?v=${encodeURIComponent(course.video_id)}&lang=${encodeURIComponent(course.target_lang)}`
+      );
+      return;
+    }
+
+    // Lecture video sources (YouTube + extension-captured platforms).
+    const route = VIDEO_PLATFORM_ROUTES.includes(platform) ? platform : "youtube";
     router.push(
       `/course/${route}?v=${encodeURIComponent(course.video_id)}&lang=${encodeURIComponent(course.target_lang)}`
     );
@@ -157,6 +223,74 @@ export default function HomePage() {
     router.push(
       `/course/youtube?v=${encodeURIComponent(id)}&lang=${encodeURIComponent(targetLang)}`
     );
+  };
+
+  const uploadDocument = async (file: File) => {
+    setUploadStatus("Reading and translating document…");
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("target_lang", targetLang);
+      const res = await fetch(
+        `${API_BASE}/api/upload-document`,
+        { method: "POST", credentials: "include", body: fd }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Upload failed (${res.status})`);
+      }
+      const data = await res.json();
+      setUploadStatus(null);
+      router.push(
+        `/document/${encodeURIComponent(data.document_id)}?lang=${encodeURIComponent(data.target_lang)}`
+      );
+    } catch (err) {
+      setUploadStatus(null);
+      setSubmitting(false);
+      setFormError(err instanceof Error ? err.message : "Upload failed");
+    }
+  };
+
+  const uploadAudio = async (file: File) => {
+    setUploadStatus("Transcribing and translating audio…");
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("target_lang", targetLang);
+      const res = await fetch(
+        `${API_BASE}/api/upload-audio`,
+        { method: "POST", credentials: "include", body: fd }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `Upload failed (${res.status})`);
+      }
+      const data = await res.json();
+      setUploadStatus(null);
+      router.push(
+        `/course/document?v=${encodeURIComponent(data.video_id)}&lang=${encodeURIComponent(data.target_lang)}`
+      );
+    } catch (err) {
+      setUploadStatus(null);
+      setSubmitting(false);
+      setFormError(err instanceof Error ? err.message : "Upload failed");
+    }
+  };
+
+  const onPickDocument: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (f) uploadDocument(f);
+  };
+
+  const onPickAudio: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (f) uploadAudio(f);
   };
 
   if (authLoading || !user) {
@@ -269,6 +403,55 @@ export default function HomePage() {
                 )}
               </Button>
             </form>
+
+            <div className="mt-5 pt-5 border-t border-border">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Or upload a file
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  ref={pdfInputRef}
+                  type="file"
+                  accept="application/pdf,.pdf,.docx,.pptx,.txt,.md,image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
+                  className="hidden"
+                  onChange={onPickDocument}
+                />
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  accept="audio/*,video/mp4,video/webm,.mp3,.wav,.m4a,.ogg,.webm,.flac,.aac,.mp4"
+                  className="hidden"
+                  onChange={onPickAudio}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={submitting}
+                  onClick={() => pdfInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Upload document
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={submitting}
+                  onClick={() => audioInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <Mic className="w-4 h-4" />
+                  Upload audio
+                </Button>
+                {uploadStatus && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {uploadStatus}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {formError && (
               <p className="mt-3 text-sm text-destructive">{formError}</p>
             )}

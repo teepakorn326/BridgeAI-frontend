@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import CoursePlayer from "@/components/CoursePlayer";
+import LectureStudy from "@/components/LectureStudy";
 import { ProcessResponse } from "@/types";
 import { API_BASE } from "@/lib/api";
 
@@ -199,7 +199,7 @@ function YoutubeCourseInner() {
     );
   }
 
-  return <CoursePlayer data={data} onBack={() => router.push("/home")} />;
+  return <LectureStudy data={data} onBack={() => router.push("/home")} />;
 }
 
 export default function YoutubeCoursePage() {

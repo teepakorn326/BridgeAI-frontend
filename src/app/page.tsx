@@ -16,6 +16,7 @@ import {
   Sparkles,
   Layers,
   Lock,
+  MessagesSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
@@ -93,7 +94,8 @@ export default function LandingPage() {
         applicationCategory: "EducationalApplication",
         operatingSystem: "Web, Chrome Extension",
         description:
-          "Bilingual subtitles plus AI summaries, quizzes, and vocabulary for Echo360, Coursera, Udemy, and YouTube lectures.",
+          "Bilingual subtitles plus AI summaries, quizzes, vocabulary, and ask-the-lecture chat for Echo360, Coursera, Udemy, and YouTube lectures.",
+        softwareVersion: "1.5.0",
         url: SITE_URL,
         offers: {
           "@type": "Offer",
@@ -105,6 +107,7 @@ export default function LandingPage() {
           "AI lecture summaries",
           "Auto-generated quizzes",
           "Vocabulary extraction",
+          "Chat with the lecture (RAG, grounded in transcript)",
           "Echo360, Coursera, Udemy, YouTube support",
         ],
       },
@@ -142,7 +145,17 @@ export default function LandingPage() {
             <p className="mt-6 text-lg text-foreground/70 max-w-2xl leading-relaxed">
               {t("landing.subtitle")}
             </p>
-            <div className="mt-10 flex flex-wrap items-center gap-3">
+            <div className="mt-8 inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-200 pl-2 pr-3 py-1.5 text-xs">
+              <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                <Sparkles className="w-3 h-3" />
+                New v1.5.0
+              </span>
+              <span className="inline-flex items-center gap-1.5 font-medium text-blue-900">
+                <MessagesSquare className="w-3.5 h-3.5 text-blue-700" />
+                Ask any lecture a question — chat is now in the extension
+              </span>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <Link href={ctaHref}>
                 <Button size="lg" className="h-11 px-6 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-shadow">
                   {ctaLabel}
@@ -152,7 +165,7 @@ export default function LandingPage() {
               <a href="/bridgeai-extension.zip" download>
                 <Button size="lg" variant="outline" className="h-11 px-6 border-2 hover:bg-blue-50">
                   <Download className="w-4 h-4 mr-1" />
-                  Download extension for Chrome
+                  Download extension v1.5.0
                 </Button>
               </a>
               <Button
@@ -310,7 +323,7 @@ export default function LandingPage() {
               <a href="/bridgeai-extension.zip" download>
                 <Button size="sm" className="h-9 bg-blue-600 hover:bg-blue-700">
                   <Download className="w-4 h-4 mr-1" />
-                  Download extension
+                  Download extension v1.5.0
                 </Button>
               </a>
               <Button
